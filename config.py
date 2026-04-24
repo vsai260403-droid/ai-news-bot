@@ -13,7 +13,7 @@ DISCORD_BOT_TOKEN = os.getenv("DISCORD_BOT_TOKEN", "")
 
 # ── Gemini API ──
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
-GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3-flash-preview")
 
 # ── 스케줄 ──
 SEND_TIME = os.getenv("SEND_TIME", "08:00")  # KST 기준 24시간 형식
