@@ -37,16 +37,18 @@ def _build_batch_prompt(articles: list[dict]) -> str:
 [판단 기준]
 - TECH: AI 모델 출시, 새로운 기능, 연구 결과, 기술적 방법론, 제품 업데이트, 벤치마크, 오픈소스 등
 - BUSINESS: 투자 유치, M&A/인수합병, 기업 인사(CEO 교체·감원), 재무 결과, 파트너십 계약, 이벤트/컨퍼런스 티켓 홍보 등
+- DUPLICATE: 같은 주제/사건을 다루는 기사가 여러 개 있으면, 가장 상세한 1개만 TECH/BUSINESS로 분류하고 나머지는 DUPLICATE로 표시
 
 [출력 형식 — 반드시 JSON 배열로만 출력. 다른 텍스트 없이 JSON만 출력할 것]
 [
   {{"id": 0, "type": "TECH", "summary": "한국어 2~3문장 요약"}},
   {{"id": 1, "type": "BUSINESS", "summary": ""}},
+  {{"id": 2, "type": "DUPLICATE", "summary": ""}},
   ...
 ]
 
 - TECH 기사: summary에 한국어로 2~3문장 요약
-- BUSINESS 기사: summary는 빈 문자열
+- BUSINESS / DUPLICATE 기사: summary는 빈 문자열
 
 {articles_text}"""
 
@@ -138,6 +140,8 @@ def summarize_articles(articles: list[dict]) -> list[dict]:
     # 결과 매핑
     result_map = {r["id"]: r for r in results}
     tech_articles = []
+    excluded_biz = 0
+    excluded_dup = 0
 
     for i, art in enumerate(articles):
         r = result_map.get(i, {})
@@ -145,14 +149,18 @@ def summarize_articles(articles: list[dict]) -> list[dict]:
         summary = r.get("summary", "")
 
         if verdict == "BUSINESS":
-            print(f"  ⏭️  [비즈니스 뉴스 제외] {art['title'][:50]}")
+            excluded_biz += 1
+            print(f"  ⏭️  [비즈니스 제외] {art['title'][:50]}")
+        elif verdict == "DUPLICATE":
+            excluded_dup += 1
+            print(f"  ⏭️  [중복 제외] {art['title'][:50]}")
         else:
             art["ai_summary"] = summary
             tech_articles.append(art)
 
-    excluded = len(articles) - len(tech_articles)
     summarized = sum(1 for a in tech_articles if a.get("ai_summary"))
-    print(f"  ✅ {summarized}/{len(tech_articles)}개 요약 완료 (비즈니스 {excluded}개 제외)")
+    print(f"  ✅ {summarized}/{len(tech_articles)}개 요약 완료 "
+          f"(비즈니스 {excluded_biz}개, 중복 {excluded_dup}개 제외)")
 
     return tech_articles
 
