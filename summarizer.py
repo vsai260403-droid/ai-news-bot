@@ -8,7 +8,7 @@ import time
 
 from google import genai
 
-from config import GEMINI_API_KEY, SUMMARY_SYSTEM_PROMPT
+from config import GEMINI_API_KEY, GEMINI_MODEL, SUMMARY_SYSTEM_PROMPT
 
 
 def _strip_html(text: str) -> str:
@@ -75,7 +75,7 @@ def summarize_articles(articles: list[dict]) -> list[dict]:
     for attempt in range(3):
         try:
             response = client.models.generate_content(
-                model="gemini-2.0-flash",
+                model=GEMINI_MODEL,
                 contents=prompt,
                 config={
                     "system_instruction": SUMMARY_SYSTEM_PROMPT,

@@ -12,6 +12,7 @@ DISCORD_WEBHOOK_URL = os.getenv("DISCORD_WEBHOOK_URL", "")
 
 # ── Gemini API ──
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
 
 # ── 스케줄 ──
 SEND_TIME = os.getenv("SEND_TIME", "08:00")  # KST 기준 24시간 형식
