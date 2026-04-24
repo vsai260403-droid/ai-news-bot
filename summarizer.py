@@ -107,12 +107,27 @@ def summarize_articles(articles: list[dict]) -> list[dict]:
                 return articles
         except Exception as e:
             err_str = str(e)
-            if "429" in err_str and attempt < 2:
-                wait = (attempt + 1) * 15
-                print(f"  ⏳ Rate limit 초과, {wait}초 후 재시도...")
-                time.sleep(wait)
+            if "429" in err_str:
+                # 에러 메시지에서 RPM/RPD 구분
+                err_lower = err_str.lower()
+                if "per_minute" in err_lower or "rpm" in err_lower or "minute" in err_lower:
+                    limit_type = "⏱️ 분당 한도(RPM) 초과"
+                elif "per_day" in err_lower or "rpd" in err_lower or "daily" in err_lower:
+                    limit_type = "📅 일일 한도(RPD) 초과"
+                else:
+                    limit_type = "🚫 API 할당량 초과"
+
+                if attempt < 2:
+                    wait = (attempt + 1) * 15
+                    print(f"  ⏳ {limit_type}, {wait}초 후 재시도... (시도 {attempt + 1}/3)")
+                    time.sleep(wait)
+                else:
+                    print(f"  ❌ {limit_type} — 3회 재시도 실패. 요약 없이 전송합니다.")
+                    for art in articles:
+                        art["ai_summary"] = ""
+                    return articles
             else:
-                print(f"  ❌ API 오류: {err_str[:100]}")
+                print(f"  ❌ API 오류: {err_str[:150]}")
                 for art in articles:
                     art["ai_summary"] = ""
                 return articles
