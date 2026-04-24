@@ -118,7 +118,8 @@ def summarize_articles(articles: list[dict]) -> list[dict]:
                     limit_type = "🚫 API 할당량 초과"
 
                 if attempt < 2:
-                    wait = (attempt + 1) * 15
+                    # RPM은 1분 리셋이므로 충분히 대기 (30초, 60초)
+                    wait = (attempt + 1) * 30
                     print(f"  ⏳ {limit_type}, {wait}초 후 재시도... (시도 {attempt + 1}/3)")
                     time.sleep(wait)
                 else:
