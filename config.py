@@ -56,6 +56,16 @@ RSS_FEEDS = [
         "url": "https://blog.google/technology/ai/rss/",
         "emoji": "🔵",
     },
+    {
+        "name": "Anthropic Blog",
+        "url": "https://www.anthropic.com/rss.xml",
+        "emoji": "🟤",
+    },
+    {
+        "name": "GitHub Blog",
+        "url": "https://github.blog/feed/",
+        "emoji": "🐙",
+    },
 ]
 
 # ── 비즈니스/기업 뉴스 제외 키워드 ──
@@ -87,6 +97,7 @@ AI_KEYWORDS = [
     "multimodal", "computer vision", "nlp", "natural language",
     "reinforcement learning", "hugging face", "meta ai", "mistral",
     "llama", "sora", "인공지능", "머신러닝", "딥러닝",
+    "github copilot", "github models", "github actions ai",
 ]
 
 # ── 전송 이력 파일 (중복 방지) ──
