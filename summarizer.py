@@ -102,49 +102,55 @@ def summarize_articles(articles: list[dict]) -> list[dict]:
         return articles
 
     tech_articles = []
-    quota_exhausted = False  # 서킷 브레이커 플래그
+    api_failed_count = 0
+    consecutive_fails = 0  # 연속 API 실패 카운터
 
     for i, art in enumerate(articles):
         print(f"  [{i + 1}/{len(articles)}] {art['title'][:50]}...")
 
-        if quota_exhausted:
-            # 할당량 초과 이후엔 API 호출 없이 기사만 통과
-            art["ai_summary"] = ""
-            tech_articles.append(art)
+        # 연속 3회 API 실패 → 할당량 소진으로 판단, 남은 기사 스킵
+        if consecutive_fails >= 3:
+            api_failed_count += 1
+            print(f"  ⏭️  [할당량 소진, 스킵] {art['title'][:50]}")
             continue
 
         is_tech, summary = classify_and_summarize(art["title"], art["summary"], client)
 
         if is_tech is None:
-            # 서킷 브레이커 발동: 이후 기사는 요약 없이 모두 포함
-            quota_exhausted = True
-            art["ai_summary"] = ""
-            tech_articles.append(art)
+            api_failed_count += 1
+            consecutive_fails += 1
+            print(f"  ⏭️  [API 실패, 제외] {art['title'][:50]}")
         elif not is_tech:
+            consecutive_fails = 0  # 성공했으므로 리셋
             print(f"  ⏭️  [비즈니스 뉴스 제외] {art['title'][:50]}")
         else:
+            consecutive_fails = 0
             art["ai_summary"] = summary
             tech_articles.append(art)
 
-        if i < len(articles) - 1 and not quota_exhausted:
+        if i < len(articles) - 1 and consecutive_fails < 3:
             time.sleep(5)
 
-    excluded = len(articles) - len(tech_articles)
+    excluded_biz = len(articles) - len(tech_articles) - api_failed_count
     summarized_count = sum(1 for a in tech_articles if a.get("ai_summary"))
-    if quota_exhausted:
-        print(f"  ⚠️  할당량 초과로 일부 요약 생략. {summarized_count}개 요약 완료, {excluded}개 비즈니스 제외")
-    else:
-        print(f"  ✅ {summarized_count}/{len(tech_articles)}개 요약 완료 (비즈니스 기사 {excluded}개 제외)")
+    print(f"  ✅ {summarized_count}/{len(tech_articles)}개 요약 완료 "
+          f"(비즈니스 {excluded_biz}개 제외, API 실패 {api_failed_count}개 제외)")
 
     return tech_articles
 
 
 if __name__ == "__main__":
     # 단독 테스트
-    test = summarize_article(
-        "OpenAI releases GPT-5 with revolutionary reasoning capabilities",
-        "OpenAI has announced the release of GPT-5, featuring significant improvements in reasoning, "
-        "multimodal understanding, and code generation. The new model demonstrates near-human performance "
-        "on complex mathematical and scientific benchmarks."
-    )
-    print(f"요약 결과: {test}")
+    client = _create_client()
+    if client:
+        is_tech, summary = classify_and_summarize(
+            "OpenAI releases GPT-5 with revolutionary reasoning capabilities",
+            "OpenAI has announced the release of GPT-5, featuring significant improvements in reasoning, "
+            "multimodal understanding, and code generation. The new model demonstrates near-human performance "
+            "on complex mathematical and scientific benchmarks.",
+            client,
+        )
+        print(f"분류: {'TECH' if is_tech else 'BUSINESS'}")
+        print(f"요약: {summary}")
+    else:
+        print("GEMINI_API_KEY가 설정되지 않았습니다.")
