@@ -3,6 +3,7 @@ AI 뉴스 데일리 디스코드 봇 — 대화형 봇 (질의응답)
 !ask [질문] 으로 Gemini에게 질문하고 답변을 받을 수 있습니다.
 """
 
+import asyncio
 import discord
 from google import genai
 
@@ -60,26 +61,33 @@ async def handle_ask(message: discord.Message, question: str):
 
     # 타이핑 표시
     async with message.channel.typing():
-        try:
-            response = client.models.generate_content(
-                model=GEMINI_MODEL,
-                contents=question,
-                config={
-                    "system_instruction": SYSTEM_PROMPT,
-                    "temperature": 0.7,
-                },
-            )
-            if response and response.text:
-                answer = response.text.strip()
-                # 디스코드 메시지 길이 제한 (2000자)
-                if len(answer) > 1900:
-                    answer = answer[:1900] + "\n\n...(답변이 잘렸습니다)"
-                await message.reply(f"🤖 **AI 답변**\n\n{answer}")
-            else:
-                await message.reply("⚠️ AI 응답이 비어있습니다. 다시 시도해주세요.")
-        except Exception as e:
-            err = str(e)[:200]
-            await message.reply(f"❌ API 오류: {err}")
+        last_err = None
+        for attempt in range(3):
+            try:
+                response = client.models.generate_content(
+                    model=GEMINI_MODEL,
+                    contents=question,
+                    config={
+                        "system_instruction": SYSTEM_PROMPT,
+                        "temperature": 0.7,
+                    },
+                )
+                if response and response.text:
+                    answer = response.text.strip()
+                    if len(answer) > 1900:
+                        answer = answer[:1900] + "\n\n...(답변이 잘렸습니다)"
+                    await message.reply(f"🤖 **AI 답변**\n\n{answer}")
+                else:
+                    await message.reply("⚠️ AI 응답이 비어있습니다. 다시 시도해주세요.")
+                return
+            except Exception as e:
+                last_err = str(e)
+                if "503" in last_err or "UNAVAILABLE" in last_err:
+                    await asyncio.sleep(2 * (attempt + 1))
+                    continue
+                break
+        err = last_err[:200] if last_err else "알 수 없는 오류"
+        await message.reply(f"❌ API 오류: {err}")
 
 
 def run_bot():
