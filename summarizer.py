@@ -36,25 +36,36 @@ def summarize_article(title: str, description: str) -> str:
         # 본문이 너무 짧으면 요약 불필요
         return ""
 
-    prompt = f"""다음 AI/기술 기사를 한국어 2-3문장으로 요약해주세요.
+    prompt = f"""다음 기사를 읽고 한국어로 2~3문장 요약해줘. (Summarize in KOREAN)
 
 제목: {title}
 내용: {clean_desc[:2000]}"""
 
-    try:
-        response = client.models.generate_content(
-            model="gemini-2.0-flash",
-            contents=prompt,
-            config={
-                "system_instruction": SUMMARY_SYSTEM_PROMPT,
-                "temperature": 0.3,
-                "max_output_tokens": 300,
-            },
-        )
-        return response.text.strip() if response.text else ""
-    except Exception as e:
-        print(f"  ⚠️  요약 실패 ({title[:40]}...): {e}")
-        return ""
+    for attempt in range(3):
+        try:
+            response = client.models.generate_content(
+                model="gemini-2.0-flash",
+                contents=prompt,
+                config={
+                    "system_instruction": SUMMARY_SYSTEM_PROMPT,
+                    "temperature": 0.3,
+                },
+            )
+            if response and response.text:
+                return response.text.strip()
+            else:
+                print(f"  ⚠️  응답이 비어있음: {title[:30]}")
+                return ""
+        except Exception as e:
+            err_str = str(e)
+            if "429" in err_str and attempt < 2:
+                wait = (attempt + 1) * 10
+                print(f"  ⏳ Rate limit 초과, {wait}초 후 재시도... ({title[:30]})")
+                time.sleep(wait)
+            else:
+                print(f"  ❌ API 요약 오류 ({title[:30]}): {err_str[:100]}")
+                return ""
+    return ""
 
 
 def summarize_articles(articles: list[dict]) -> list[dict]:
@@ -73,9 +84,9 @@ def summarize_articles(articles: list[dict]) -> list[dict]:
     for i, art in enumerate(articles):
         print(f"  [{i + 1}/{len(articles)}] {art['title'][:50]}...")
         art["ai_summary"] = summarize_article(art["title"], art["summary"])
-        # Rate limit 대비 딜레이 (Gemini Flash는 분당 15회 제한이 있을 수 있음)
+        # Rate limit 대비 딜레이 (Gemini Flash 무료 티어: 분당 15회 → 5초 간격으로 안전하게 유지)
         if i < len(articles) - 1:
-            time.sleep(2)
+            time.sleep(5)
 
     summarized_count = sum(1 for a in articles if a["ai_summary"])
     print(f"  ✅ {summarized_count}/{len(articles)}개 요약 완료")

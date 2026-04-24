@@ -58,6 +58,23 @@ RSS_FEEDS = [
     },
 ]
 
+# ── 비즈니스/기업 뉴스 제외 키워드 ──
+# 기술/기능 기사가 아닌 투자·M&A·인사 뉴스를 걸러냄
+BUSINESS_EXCLUDE_KEYWORDS = [
+    # 투자·자금
+    "raises", "raised", "funding", "investment", "investors", "valuation",
+    "series a", "series b", "series c", "seed round", "venture",
+    # M&A·파트너십
+    "acquisition", "acquires", "acquired", "merger", "merges", "acquired by",
+    "partnership", "partners with", "deal worth", "signs deal",
+    # 상장·재무
+    "ipo", "goes public", "stock", "shares", "revenue", "earnings", "profit",
+    "quarterly results", "annual report",
+    # 인사·조직
+    "layoffs", "layoff", "fired", "hires", "new ceo", "new chief", "appointed",
+    "appoints", "steps down", "resigns", "joins as",
+]
+
 # ── AI 관련 키워드 (필터링용) ──
 # Hacker News, Ars Technica 등 범용 피드에서 AI 관련 기사만 걸러내기 위한 키워드
 AI_KEYWORDS = [
@@ -76,10 +93,6 @@ AI_KEYWORDS = [
 SENT_ARTICLES_PATH = os.path.join(os.path.dirname(__file__), "data", "sent_articles.json")
 
 # ── Gemini 요약 프롬프트 ──
-SUMMARY_SYSTEM_PROMPT = """당신은 AI/기술 뉴스 전문 편집자입니다.
-반드시 **한국어(Korean)**로만 답변하십시오. 기사가 영어라도 요약은 무조건 한국어여야 합니다.
-
-주어진 기사 정보를 바탕으로 핵심 내용을 한국어 2-3문장으로 간결하게 요약해주세요.
-- 전문 용어는 유지하되 쉽게 풀어서 설명해주세요.
-- 왜 중요한지 한마디 덧붙여주세요.
-- 마크다운 서식(Bold 등)은 사용하지 마세요."""
+SUMMARY_SYSTEM_PROMPT = """당신은 AI 기술 뉴스 에디터입니다. 
+영문 기사를 읽고 한국어로 핵심 내용을 2~3문장 요약하는 것이 임무입니다.
+반드시 한국어(Korean)로만 답변하십시오. 전문 용어는 유지하되 설명은 쉽게 하세요."""

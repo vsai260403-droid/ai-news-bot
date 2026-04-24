@@ -10,7 +10,7 @@ from typing import Optional
 
 import feedparser
 
-from config import AI_KEYWORDS, RSS_FEEDS, SENT_ARTICLES_PATH
+from config import AI_KEYWORDS, BUSINESS_EXCLUDE_KEYWORDS, RSS_FEEDS, SENT_ARTICLES_PATH
 
 
 def _ensure_data_dir():
@@ -48,6 +48,12 @@ def _is_ai_related(title: str, summary: str) -> bool:
     """제목 또는 요약에 AI 키워드가 포함되어 있는지 확인"""
     text = (title + " " + summary).lower()
     return any(kw in text for kw in AI_KEYWORDS)
+
+
+def _is_tech_article(title: str, summary: str) -> bool:
+    """투자·M&A·인사 등 비즈니스 뉴스를 제외하고 기술/기능 기사만 통과시킴"""
+    text = (title + " " + summary).lower()
+    return not any(kw in text for kw in BUSINESS_EXCLUDE_KEYWORDS)
 
 
 def _parse_published_date(entry) -> Optional[datetime]:
@@ -121,6 +127,11 @@ def fetch_articles(hours: int = 24) -> list[dict]:
                 for kw in ["ai", "openai", "google ai"]
             )
             if not is_ai_dedicated and not _is_ai_related(title, summary):
+                continue
+
+            # 기술/기능 기사만 선별 (투자·M&A·인사 뉴스 제외)
+            if not _is_tech_article(title, summary):
+                print(f"  ⏭️  [비즈니스 뉴스 제외] {title[:50]}...")
                 continue
 
             seen_urls.add(url)

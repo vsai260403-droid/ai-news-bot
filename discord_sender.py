@@ -24,7 +24,7 @@ def _build_embeds(articles: list[dict]) -> list[DiscordEmbed]:
         # 요약 텍스트 구성
         description_parts = []
         if art.get("ai_summary"):
-            description_parts.append(art["ai_summary"])
+            description_parts.append(f"📝 **AI 요약**\n{art['ai_summary']}")
         description_parts.append(f"\n🔗 [원문 읽기]({art['url']})")
         description = "\n".join(description_parts)
 
