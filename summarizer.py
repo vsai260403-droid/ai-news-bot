@@ -108,17 +108,19 @@ def summarize_articles(articles: list[dict]) -> list[dict]:
         except Exception as e:
             err_str = str(e)
             if "429" in err_str:
+                # 에러 원문 출력 (RPM/RPD 디버깅용)
+                print(f"  📋 에러 원문: {err_str[:300]}")
+
                 # 에러 메시지에서 RPM/RPD 구분
                 err_lower = err_str.lower()
-                if "per_minute" in err_lower or "rpm" in err_lower or "minute" in err_lower:
-                    limit_type = "⏱️ 분당 한도(RPM) 초과"
-                elif "per_day" in err_lower or "rpd" in err_lower or "daily" in err_lower:
+                if "per_day" in err_lower or "rpd" in err_lower or "daily" in err_lower:
                     limit_type = "📅 일일 한도(RPD) 초과"
+                elif "per_minute" in err_lower or "rpm" in err_lower or "minute" in err_lower:
+                    limit_type = "⏱️ 분당 한도(RPM) 초과"
                 else:
-                    limit_type = "🚫 API 할당량 초과"
+                    limit_type = "🚫 API 할당량 초과 (유형 불명)"
 
                 if attempt < 2:
-                    # RPM은 1분 리셋이므로 충분히 대기 (30초, 60초)
                     wait = (attempt + 1) * 30
                     print(f"  ⏳ {limit_type}, {wait}초 후 재시도... (시도 {attempt + 1}/3)")
                     time.sleep(wait)
