@@ -82,12 +82,13 @@ async def handle_ask(message: discord.Message, question: str):
                 return
             except Exception as e:
                 last_err = str(e)
+                print(f"  [LOG] API 오류 (시도 {attempt+1}/3): {last_err[:150]}")
                 if "503" in last_err or "UNAVAILABLE" in last_err:
                     await asyncio.sleep(2 * (attempt + 1))
                     continue
                 break
-        err = last_err[:200] if last_err else "알 수 없는 오류"
-        await message.reply(f"❌ API 오류: {err}")
+        print(f"  [LOG] 3회 재시도 실패: {last_err[:200]}")
+        await message.reply("⚠️ 잠시 후 다시 시도해주세요.")
 
 
 def run_bot():
