@@ -46,16 +46,20 @@ def run_daily_briefing(dry_run: bool = False):
         print("\n😴 새로운 AI 뉴스가 없습니다.")
         return
 
-    # 2. 상위 N개 선정
-    articles = articles[:MAX_ARTICLES]
-    print(f"\n📋 Step 2: 상위 {len(articles)}개 기사 선정")
+    # 2. LLM 분류 후 상위 N개 확보를 위해 넉넉하게 후보 선정 (MAX_ARTICLES * 2)
+    candidate_count = MAX_ARTICLES * 2
+    articles = articles[:candidate_count]
+    print(f"\n📋 Step 2: LLM 분류 후보 {len(articles)}개 선정 (목표: {MAX_ARTICLES}개)")
 
     for i, art in enumerate(articles, 1):
         print(f"  {i}. [{art['source_name']}] {art['title'][:60]}...")
 
-    # 3. AI 요약
-    print("\n🤖 Step 3: Gemini API로 한국어 요약 생성")
+    # 3. AI 분류 + 요약 (비즈니스 뉴스 자동 제외)
+    print("\n🤖 Step 3: Gemini API로 기사 분류 및 한국어 요약 생성")
     articles = summarize_articles(articles)
+
+    # 최종 상위 N개 제한
+    articles = articles[:MAX_ARTICLES]
 
     # 4. 디스코드 전송
     if dry_run:

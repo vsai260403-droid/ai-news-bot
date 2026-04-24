@@ -22,21 +22,28 @@ def _create_client():
     return genai.Client(api_key=GEMINI_API_KEY)
 
 
-def summarize_article(title: str, description: str) -> str:
+def classify_and_summarize(title: str, description: str) -> tuple[bool, str]:
     """
-    기사 제목과 설명을 받아 한국어 2-3줄로 요약.
-    API 키가 없거나 실패 시 빈 문자열 반환.
+    기사가 기술/기능 기사인지 LLM이 직접 판단하고, 맞으면 한국어 요약까지 반환.
+    Returns:
+        (is_tech: bool, summary: str)
     """
     client = _create_client()
     if not client:
-        return ""
+        return True, ""
 
     clean_desc = _strip_html(description)
-    if len(clean_desc) < 30:
-        # 본문이 너무 짧으면 요약 불필요
-        return ""
 
-    prompt = f"""다음 기사를 읽고 한국어로 2~3문장 요약해줘. (Summarize in KOREAN)
+    prompt = f"""다음 기사를 읽고 두 가지를 판단해줘.
+
+[판단 기준]
+- TECH: AI 모델 출시, 새로운 기능, 연구 결과, 기술적 방법론, 제품 업데이트, 벤치마크 등
+- BUSINESS: 투자 유치, M&A/인수합병, 기업 인사(CEO 교체·감원), 재무 결과, 파트너십 계약 등
+
+[출력 형식 — 반드시 이 형식만 사용]
+첫 줄: TECH 또는 BUSINESS (다른 단어 쓰지 말 것)
+TECH일 경우 둘째 줄부터: 한국어 2~3문장 요약
+BUSINESS일 경우: 첫 줄만 출력
 
 제목: {title}
 내용: {clean_desc[:2000]}"""
@@ -48,14 +55,20 @@ def summarize_article(title: str, description: str) -> str:
                 contents=prompt,
                 config={
                     "system_instruction": SUMMARY_SYSTEM_PROMPT,
-                    "temperature": 0.3,
+                    "temperature": 0.1,
                 },
             )
-            if response and response.text:
-                return response.text.strip()
-            else:
+            if not (response and response.text):
                 print(f"  ⚠️  응답이 비어있음: {title[:30]}")
-                return ""
+                return True, ""
+
+            lines = response.text.strip().splitlines()
+            verdict = lines[0].strip().upper()
+            if verdict == "BUSINESS":
+                return False, ""
+            else:
+                summary = "\n".join(lines[1:]).strip() if len(lines) > 1 else ""
+                return True, summary
         except Exception as e:
             err_str = str(e)
             if "429" in err_str and attempt < 2:
@@ -63,9 +76,9 @@ def summarize_article(title: str, description: str) -> str:
                 print(f"  ⏳ Rate limit 초과, {wait}초 후 재시도... ({title[:30]})")
                 time.sleep(wait)
             else:
-                print(f"  ❌ API 요약 오류 ({title[:30]}): {err_str[:100]}")
-                return ""
-    return ""
+                print(f"  ❌ API 오류 ({title[:30]}): {err_str[:100]}")
+                return True, ""
+    return True, ""
 
 
 def summarize_articles(articles: list[dict]) -> list[dict]:
@@ -79,19 +92,26 @@ def summarize_articles(articles: list[dict]) -> list[dict]:
             art["ai_summary"] = ""
         return articles
 
-    print(f"\n🤖 {len(articles)}개 기사 요약 중...")
+    print(f"\n🤖 {len(articles)}개 기사 LLM 분류 + 요약 중...")
 
+    tech_articles = []
     for i, art in enumerate(articles):
         print(f"  [{i + 1}/{len(articles)}] {art['title'][:50]}...")
-        art["ai_summary"] = summarize_article(art["title"], art["summary"])
-        # Rate limit 대비 딜레이 (Gemini Flash 무료 티어: 분당 15회 → 5초 간격으로 안전하게 유지)
+        is_tech, summary = classify_and_summarize(art["title"], art["summary"])
+        if not is_tech:
+            print(f"  ⏭️  [비즈니스 뉴스 제외] {art['title'][:50]}")
+        else:
+            art["ai_summary"] = summary
+            tech_articles.append(art)
+        # Rate limit 대비 딜레이 (Gemini Flash 무료 티어: 분당 15회 → 5초 간격)
         if i < len(articles) - 1:
             time.sleep(5)
 
-    summarized_count = sum(1 for a in articles if a["ai_summary"])
-    print(f"  ✅ {summarized_count}/{len(articles)}개 요약 완료")
+    excluded = len(articles) - len(tech_articles)
+    summarized_count = sum(1 for a in tech_articles if a["ai_summary"])
+    print(f"  ✅ {summarized_count}/{len(tech_articles)}개 요약 완료 (비즈니스 기사 {excluded}개 제외)")
 
-    return articles
+    return tech_articles
 
 
 if __name__ == "__main__":
