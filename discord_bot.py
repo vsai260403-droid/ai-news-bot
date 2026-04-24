@@ -25,6 +25,32 @@ SYSTEM_PROMPT = """당신은 AI/기술 분야 전문 어시스턴트입니다.
 답변은 디스코드 메시지로 보내지므로 2000자 이내로 작성하세요."""
 
 
+WELCOME_MESSAGE = """
+📌 **AI 뉴스 데일리 봇 가이드**
+━━━━━━━━━━━━━━━━━━━━
+
+🗞️ **자동 뉴스 브리핑**
+매일 아침 **8시(KST)** 에 AI/기술 뉴스 TOP 10을 자동으로 전송합니다.
+• 9개 글로벌 소스에서 수집 (TechCrunch, The Verge, OpenAI, Google AI 등)
+• AI가 중요도 순으로 선별하고 한국어로 요약
+• 비즈니스 뉴스·중복 기사는 자동 제외
+
+💬 **AI 질의응답**
+`!ask` 명령어로 AI에게 질문할 수 있습니다.
+
+> `!ask GPT-5.5가 뭐야?`
+> `!ask 트랜스포머 아키텍처 쉽게 설명해줘`
+> `!ask 오늘 AI 뉴스 트렌드 정리해줘`
+
+📋 **명령어 목록**
+• `!ask [질문]` — AI에게 질문하기
+• `!help` — 이 안내 메시지 보기
+
+━━━━━━━━━━━━━━━━━━━━
+🤖 Powered by Gemini AI
+""".strip()
+
+
 async def handle_ask(message: discord.Message, question: str):
     """!ask 명령어 처리"""
     client = _get_gemini_client()
@@ -84,6 +110,18 @@ def run_bot():
                 await message.reply("💡 사용법: `!ask AI 뉴스 트렌드 알려줘`")
                 return
             await handle_ask(message, question)
+
+        elif message.content == "!help":
+            await message.channel.send(WELCOME_MESSAGE)
+
+        elif message.content == "!pin":
+            # 관리자만 고정 메시지 가능
+            if message.author.guild_permissions.manage_messages:
+                msg = await message.channel.send(WELCOME_MESSAGE)
+                await msg.pin()
+                await message.delete()
+            else:
+                await message.reply("⚠️ 메시지 고정은 관리자만 가능합니다.")
 
     print("\n🤖 AI 뉴스 봇 — 대화 모드 시작")
     print(f"   Gemini Model: {GEMINI_MODEL}")
