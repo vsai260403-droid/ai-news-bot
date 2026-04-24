@@ -22,16 +22,13 @@ def _create_client():
     return genai.Client(api_key=GEMINI_API_KEY)
 
 
-def classify_and_summarize(title: str, description: str) -> tuple[bool, str]:
+def classify_and_summarize(title: str, description: str, client) -> tuple[bool, str]:
     """
     기사가 기술/기능 기사인지 LLM이 직접 판단하고, 맞으면 한국어 요약까지 반환.
     Returns:
         (is_tech: bool, summary: str)
+        할당량 초과로 API 호출 불가 시 (None, "") 반환 → 호출자가 서킷 브레이커 처리
     """
-    client = _create_client()
-    if not client:
-        return True, ""
-
     clean_desc = _strip_html(description)
 
     prompt = f"""다음 기사를 읽고 두 가지를 판단해줘.
@@ -48,7 +45,7 @@ BUSINESS일 경우: 첫 줄만 출력
 제목: {title}
 내용: {clean_desc[:2000]}"""
 
-    for attempt in range(3):
+    for attempt in range(2):  # 최대 2회 시도 (RPM 일시 초과 대비)
         try:
             response = client.models.generate_content(
                 model="gemini-2.0-flash",
@@ -59,7 +56,6 @@ BUSINESS일 경우: 첫 줄만 출력
                 },
             )
             if not (response and response.text):
-                print(f"  ⚠️  응답이 비어있음: {title[:30]}")
                 return True, ""
 
             lines = response.text.strip().splitlines()
@@ -71,10 +67,14 @@ BUSINESS일 경우: 첫 줄만 출력
                 return True, summary
         except Exception as e:
             err_str = str(e)
-            if "429" in err_str and attempt < 2:
-                wait = (attempt + 1) * 10
-                print(f"  ⏳ Rate limit 초과, {wait}초 후 재시도... ({title[:30]})")
-                time.sleep(wait)
+            if "429" in err_str:
+                if attempt == 0:
+                    print(f"  ⏳ Rate limit, 15초 후 1회 재시도... ({title[:30]})")
+                    time.sleep(15)
+                else:
+                    # 2회 연속 429 → 일일 할당량 초과 가능성, 서킷 브레이커 신호
+                    print(f"  🚫 할당량 초과 감지 — 이후 요약 중단 ({title[:30]})")
+                    return None, ""
             else:
                 print(f"  ❌ API 오류 ({title[:30]}): {err_str[:100]}")
                 return True, ""
@@ -94,22 +94,47 @@ def summarize_articles(articles: list[dict]) -> list[dict]:
 
     print(f"\n🤖 {len(articles)}개 기사 LLM 분류 + 요약 중...")
 
+    client = _create_client()
+    if not client:
+        print("  ⚠️  GEMINI_API_KEY가 없어 요약을 건너뜁니다.")
+        for art in articles:
+            art["ai_summary"] = ""
+        return articles
+
     tech_articles = []
+    quota_exhausted = False  # 서킷 브레이커 플래그
+
     for i, art in enumerate(articles):
         print(f"  [{i + 1}/{len(articles)}] {art['title'][:50]}...")
-        is_tech, summary = classify_and_summarize(art["title"], art["summary"])
-        if not is_tech:
+
+        if quota_exhausted:
+            # 할당량 초과 이후엔 API 호출 없이 기사만 통과
+            art["ai_summary"] = ""
+            tech_articles.append(art)
+            continue
+
+        is_tech, summary = classify_and_summarize(art["title"], art["summary"], client)
+
+        if is_tech is None:
+            # 서킷 브레이커 발동: 이후 기사는 요약 없이 모두 포함
+            quota_exhausted = True
+            art["ai_summary"] = ""
+            tech_articles.append(art)
+        elif not is_tech:
             print(f"  ⏭️  [비즈니스 뉴스 제외] {art['title'][:50]}")
         else:
             art["ai_summary"] = summary
             tech_articles.append(art)
-        # Rate limit 대비 딜레이 (Gemini Flash 무료 티어: 분당 15회 → 5초 간격)
-        if i < len(articles) - 1:
+
+        if i < len(articles) - 1 and not quota_exhausted:
             time.sleep(5)
 
     excluded = len(articles) - len(tech_articles)
-    summarized_count = sum(1 for a in tech_articles if a["ai_summary"])
-    print(f"  ✅ {summarized_count}/{len(tech_articles)}개 요약 완료 (비즈니스 기사 {excluded}개 제외)")
+    summarized_count = sum(1 for a in tech_articles if a.get("ai_summary"))
+    if quota_exhausted:
+        print(f"  ⚠️  할당량 초과로 일부 요약 생략. {summarized_count}개 요약 완료, {excluded}개 비즈니스 제외")
+    else:
+        print(f"  ✅ {summarized_count}/{len(tech_articles)}개 요약 완료 (비즈니스 기사 {excluded}개 제외)")
 
     return tech_articles
 

@@ -99,7 +99,13 @@ def run_scheduler():
         print("❌ 오류: .env 파일에 DISCORD_WEBHOOK_URL을 설정해주세요.")
         sys.exit(1)
 
-    schedule.every().day.at(SEND_TIME).do(run_daily_briefing)
+    # SEND_TIME 기준 20분 전에 처리 시작 (LLM 요약 시간 확보)
+    send_hour, send_minute = map(int, SEND_TIME.split(":"))
+    start_dt = datetime(2000, 1, 1, send_hour, send_minute) - timedelta(minutes=20)
+    start_time = start_dt.strftime("%H:%M")
+
+    print(f"   처리 시작: {start_time} KST → 전송 목표: {SEND_TIME} KST")
+    schedule.every().day.at(start_time).do(run_daily_briefing)
 
     # 다음 실행 시간 표시
     next_run = schedule.next_run()
