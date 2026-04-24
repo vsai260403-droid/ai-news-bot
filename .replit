@@ -1,8 +1,8 @@
-run = "python discord_bot.py"
+run = "pip install -r requirements.txt && python discord_bot.py"
 entrypoint = "discord_bot.py"
 
 [nix]
 channel = "stable-24_05"
 
 [deployment]
-run = "python discord_bot.py"
+run = "pip install -r requirements.txt && python discord_bot.py"
