@@ -24,7 +24,7 @@ def _create_client():
 
 
 def _build_batch_prompt(articles: list[dict]) -> str:
-    """20개 기사를 하나의 프롬프트로 구성"""
+    """기사들을 하나의 프롬프트로 구성 (분류+중요도+요약)"""
     article_list = []
     for i, art in enumerate(articles):
         clean_desc = _strip_html(art.get("summary", ""))[:500]
@@ -32,23 +32,29 @@ def _build_batch_prompt(articles: list[dict]) -> str:
 
     articles_text = "\n\n".join(article_list)
 
-    return f"""아래 기사들을 각각 읽고 분류+요약해줘.
+    return f"""아래 기사들을 각각 읽고 분류+중요도 평가+요약해줘.
 
 [판단 기준]
 - TECH: AI 모델 출시, 새로운 기능, 연구 결과, 기술적 방법론, 제품 업데이트, 벤치마크, 오픈소스 등
 - BUSINESS: 투자 유치, M&A/인수합병, 기업 인사(CEO 교체·감원), 재무 결과, 파트너십 계약, 이벤트/컨퍼런스 티켓 홍보 등
 - DUPLICATE: 같은 주제/사건을 다루는 기사가 여러 개 있으면, 가장 상세한 1개만 TECH/BUSINESS로 분류하고 나머지는 DUPLICATE로 표시
 
+[중요도 점수 기준 (1~10)]
+- 10: 업계 판도를 바꾸는 메이저 발표 (새 모델, 획기적 기능)
+- 7~9: 주요 제품 업데이트, 중요한 연구 결과, 대규모 오픈소스 공개
+- 4~6: 일반적인 기능 업데이트, 흥미로운 프로젝트, 분석 기사
+- 1~3: 사소한 업데이트, 의견 기사, 간접적 AI 관련
+
 [출력 형식 — 반드시 JSON 배열로만 출력. 다른 텍스트 없이 JSON만 출력할 것]
 [
-  {{"id": 0, "type": "TECH", "summary": "한국어 2~3문장 요약"}},
-  {{"id": 1, "type": "BUSINESS", "summary": ""}},
-  {{"id": 2, "type": "DUPLICATE", "summary": ""}},
+  {{"id": 0, "type": "TECH", "score": 9, "summary": "한국어 2~3문장 요약"}},
+  {{"id": 1, "type": "BUSINESS", "score": 0, "summary": ""}},
+  {{"id": 2, "type": "DUPLICATE", "score": 0, "summary": ""}},
   ...
 ]
 
-- TECH 기사: summary에 한국어로 2~3문장 요약
-- BUSINESS / DUPLICATE 기사: summary는 빈 문자열
+- TECH 기사: score(1~10) + summary에 한국어로 2~3문장 요약
+- BUSINESS / DUPLICATE 기사: score는 0, summary는 빈 문자열
 
 {articles_text}"""
 
@@ -147,16 +153,21 @@ def summarize_articles(articles: list[dict]) -> list[dict]:
         r = result_map.get(i, {})
         verdict = r.get("type", "TECH").upper()
         summary = r.get("summary", "")
+        score = r.get("score", 5)
 
         if verdict == "BUSINESS":
             excluded_biz += 1
-            print(f"  ⏭️  [비즈니스 제외] {art['title'][:50]}")
+            print(f"  \u23ed\ufe0f  [비즈니스 제외] {art['title'][:50]}")
         elif verdict == "DUPLICATE":
             excluded_dup += 1
-            print(f"  ⏭️  [중복 제외] {art['title'][:50]}")
+            print(f"  \u23ed\ufe0f  [중복 제외] {art['title'][:50]}")
         else:
             art["ai_summary"] = summary
+            art["importance_score"] = score
             tech_articles.append(art)
+
+    # 중요도 순 정렬 (높은 점수가 위로)
+    tech_articles.sort(key=lambda x: x.get("importance_score", 0), reverse=True)
 
     summarized = sum(1 for a in tech_articles if a.get("ai_summary"))
     print(f"  ✅ {summarized}/{len(tech_articles)}개 요약 완료 "

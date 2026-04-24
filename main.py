@@ -46,8 +46,8 @@ def run_daily_briefing(dry_run: bool = False):
         print("\n😴 새로운 AI 뉴스가 없습니다.")
         return
 
-    # 2. LLM 분류 후 상위 N개 확보를 위해 넉넉하게 후보 선정 (MAX_ARTICLES * 2)
-    candidate_count = MAX_ARTICLES * 2
+    # 2. LLM 분류 후 충분한 후보 확보 (MAX_ARTICLES * 3)
+    candidate_count = MAX_ARTICLES * 3
     articles = articles[:candidate_count]
     print(f"\n📋 Step 2: LLM 분류 후보 {len(articles)}개 선정 (목표: {MAX_ARTICLES}개)")
 
