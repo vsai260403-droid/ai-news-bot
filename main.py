@@ -121,12 +121,14 @@ def main():
   python main.py              매일 자동 실행 (스케줄러)
   python main.py --now        지금 바로 실행
   python main.py --dry-run    수집 & 요약만 (전송 X)
+  python main.py --bot        대화형 봇 모드 (!ask 질문)
   python main.py --test       디스코드 연결 테스트
         """
     )
     parser.add_argument("--now", action="store_true", help="즉시 실행")
     parser.add_argument("--dry-run", action="store_true", help="수집 & 요약만 (전송하지 않음)")
     parser.add_argument("--test", action="store_true", help="디스코드 테스트 메시지 전송")
+    parser.add_argument("--bot", action="store_true", help="대화형 봇 모드 (!ask 질문)")
 
     args = parser.parse_args()
 
@@ -139,6 +141,9 @@ def main():
 
     if args.test:
         send_test_message()
+    elif args.bot:
+        from discord_bot import run_bot
+        run_bot()
     elif args.now or args.dry_run:
         run_daily_briefing(dry_run=args.dry_run)
     else:

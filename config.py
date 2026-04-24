@@ -9,6 +9,7 @@ load_dotenv()
 
 # ── Discord ──
 DISCORD_WEBHOOK_URL = os.getenv("DISCORD_WEBHOOK_URL", "")
+DISCORD_BOT_TOKEN = os.getenv("DISCORD_BOT_TOKEN", "")
 
 # ── Gemini API ──
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
