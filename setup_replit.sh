@@ -6,11 +6,11 @@ echo "=== Replit 환경변수 설정 ==="
 echo ""
 
 read -p "DISCORD_BOT_TOKEN: " token
-read -p "GEMINI_API_KEY: " apikey
+read -p "OPENAI_API_KEY: " apikey
 
 cat > .env << EOF
 DISCORD_BOT_TOKEN=$token
-GEMINI_API_KEY=$apikey
+OPENAI_API_KEY=$apikey
 EOF
 
 echo ""
