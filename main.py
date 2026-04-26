@@ -22,7 +22,7 @@ if sys.stderr.encoding != "utf-8":
 
 import schedule
 
-from config import DISCORD_WEBHOOK_URL, GEMINI_API_KEY, MAX_ARTICLES, SEND_TIME
+from config import DISCORD_WEBHOOK_URL, OPENAI_API_KEY, MAX_ARTICLES, SEND_TIME
 from collector import fetch_articles, save_sent_articles, _load_sent_articles
 from summarizer import summarize_articles
 from discord_sender import send_to_discord, send_test_message
@@ -55,7 +55,7 @@ def run_daily_briefing(dry_run: bool = False):
         print(f"  {i}. [{art['source_name']}] {art['title'][:60]}...")
 
     # 3. AI 분류 + 요약 (비즈니스 뉴스 자동 제외)
-    print("\n🤖 Step 3: Gemini API로 기사 분류 및 한국어 요약 생성")
+    print("\n🤖 Step 3: OpenAI API로 기사 분류 및 한국어 요약 생성")
     articles = summarize_articles(articles)
 
     # 최종 상위 N개 제한
@@ -135,7 +135,7 @@ def main():
     # 설정 상태 출력
     print("\n🤖 AI 뉴스 데일리 디스코드 봇")
     print(f"   Discord Webhook: {'✅ 설정됨' if DISCORD_WEBHOOK_URL else '❌ 미설정'}")
-    print(f"   Gemini API Key:  {'✅ 설정됨' if GEMINI_API_KEY else '⚠️  미설정 (요약 비활성)'}")
+    print(f"   OpenAI API Key:  {'✅ 설정됨' if OPENAI_API_KEY else '⚠️  미설정 (요약 비활성)'}")
     print(f"   전송 시간:       {SEND_TIME} KST")
     print(f"   최대 기사 수:    {MAX_ARTICLES}개\n")
 

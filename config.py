@@ -11,9 +11,9 @@ load_dotenv()
 DISCORD_WEBHOOK_URL = os.getenv("DISCORD_WEBHOOK_URL", "")
 DISCORD_BOT_TOKEN = os.getenv("DISCORD_BOT_TOKEN", "")
 
-# ── Gemini API ──
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
-GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3-flash-preview")
+# ── OpenAI API ──
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
+OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-5.5")
 
 # ── 스케줄 ──
 SEND_TIME = os.getenv("SEND_TIME", "08:00")  # KST 기준 24시간 형식
@@ -88,7 +88,7 @@ AI_KEYWORDS = [
 # ── 전송 이력 파일 (중복 방지) ──
 SENT_ARTICLES_PATH = os.path.join(os.path.dirname(__file__), "data", "sent_articles.json")
 
-# ── Gemini 요약 프롬프트 ──
+# ── 요약 프롬프트 ──
 SUMMARY_SYSTEM_PROMPT = """당신은 AI 기술 뉴스 에디터입니다.
 기사가 기술/기능/연구에 관한 것인지 비즈니스(투자·M&A·인사·재무)에 관한 것인지 정확히 판단하고,
 기술 기사인 경우 한국어로 핵심 내용을 2~3문장 요약하는 것이 임무입니다.

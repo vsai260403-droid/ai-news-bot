@@ -1,14 +1,14 @@
 """
-AI 뉴스 데일리 디스코드 봇 — Gemini 기반 뉴스 요약기 (배치 처리)
+AI 뉴스 데일리 디스코드 봇 — GPT 기반 뉴스 요약기 (배치 처리)
 """
 
 import json
 import re
 import time
 
-from google import genai
+from openai import OpenAI
 
-from config import GEMINI_API_KEY, GEMINI_MODEL, SUMMARY_SYSTEM_PROMPT
+from config import OPENAI_API_KEY, OPENAI_MODEL, SUMMARY_SYSTEM_PROMPT
 
 
 def _strip_html(text: str) -> str:
@@ -17,10 +17,10 @@ def _strip_html(text: str) -> str:
 
 
 def _create_client():
-    """Gemini API 클라이언트 생성"""
-    if not GEMINI_API_KEY:
+    """OpenAI API 클라이언트 생성"""
+    if not OPENAI_API_KEY:
         return None
-    return genai.Client(api_key=GEMINI_API_KEY)
+    return OpenAI(api_key=OPENAI_API_KEY)
 
 
 def _build_batch_prompt(articles: list[dict]) -> str:
@@ -64,8 +64,8 @@ def summarize_articles(articles: list[dict]) -> list[dict]:
     기사 리스트를 1회 API 호출로 분류+요약.
     TECH 기사만 필터링하여 ai_summary 포함해 반환.
     """
-    if not GEMINI_API_KEY:
-        print("  ⚠️  GEMINI_API_KEY가 설정되지 않았습니다. 요약을 건너뜁니다.")
+    if not OPENAI_API_KEY:
+        print("  ⚠️  OPENAI_API_KEY가 설정되지 않았습니다. 요약을 건너맜니다.")
         for art in articles:
             art["ai_summary"] = ""
         return articles
@@ -82,22 +82,23 @@ def summarize_articles(articles: list[dict]) -> list[dict]:
 
     for attempt in range(3):
         try:
-            response = client.models.generate_content(
-                model=GEMINI_MODEL,
-                contents=prompt,
-                config={
-                    "system_instruction": SUMMARY_SYSTEM_PROMPT,
-                    "temperature": 0.1,
-                },
+            response = client.chat.completions.create(
+                model=OPENAI_MODEL,
+                messages=[
+                    {"role": "system", "content": SUMMARY_SYSTEM_PROMPT},
+                    {"role": "user", "content": prompt},
+                ],
+                temperature=0.1,
             )
-            if not (response and response.text):
+            raw_text = response.choices[0].message.content if response.choices else None
+            if not raw_text:
                 print("  ⚠️  API 응답이 비어있습니다. 전체 기사를 요약 없이 전송합니다.")
                 for art in articles:
                     art["ai_summary"] = ""
                 return articles
 
             # JSON 파싱 (```json ... ``` 감싸기 대응)
-            text = response.text.strip()
+            text = raw_text.strip()
             if text.startswith("```"):
                 text = re.sub(r"^```(?:json)?\s*", "", text)
                 text = re.sub(r"\s*```$", "", text)

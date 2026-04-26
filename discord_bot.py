@@ -1,28 +1,28 @@
 """
 AI 뉴스 데일리 디스코드 봇 — 대화형 봇 (질의응답)
-!ask [질문] 으로 Gemini에게 질문하고 답변을 받을 수 있습니다.
+!ask [질문] 으로 GPT에게 질문하고 답변을 받을 수 있습니다.
 """
 
 import asyncio
 import discord
-from google import genai
+from openai import OpenAI
 
-from config import DISCORD_BOT_TOKEN, GEMINI_API_KEY, GEMINI_MODEL
+from config import DISCORD_BOT_TOKEN, OPENAI_API_KEY, OPENAI_MODEL
 
-# Gemini 클라이언트
-_gemini_client = None
+# OpenAI 클라이언트
+_openai_client = None
 
 
-def _get_gemini_client():
-    global _gemini_client
-    if _gemini_client is None and GEMINI_API_KEY:
-        _gemini_client = genai.Client(api_key=GEMINI_API_KEY)
-    return _gemini_client
+def _get_openai_client():
+    global _openai_client
+    if _openai_client is None and OPENAI_API_KEY:
+        _openai_client = OpenAI(api_key=OPENAI_API_KEY)
+    return _openai_client
 
 
 SYSTEM_PROMPT = """당신은 AI/기술 분야 전문 어시스턴트입니다.
-당신은 Google의 Gemini 모델(gemini-3-flash-preview)을 기반으로 동작합니다.
-버전을 물으면 "Gemini 3 Flash Preview (Google)"라고 답하세요.
+당신은 OpenAI의 GPT-5.5 모델을 기반으로 동작합니다.
+버전을 물으면 "GPT-5.5 (OpenAI)"라고 답하세요.
 사용자의 질문에 한국어로 정확하고 간결하게 답변하세요.
 기술 용어는 유지하되 설명은 쉽게 하세요.
 답변은 디스코드 메시지로 보내지므로 2000자 이내로 작성하세요."""
@@ -50,15 +50,15 @@ WELCOME_MESSAGE = """
 • `!help` — 이 안내 메시지 보기
 
 ━━━━━━━━━━━━━━━━━━━━
-🤖 Powered by Gemini AI
+🤖 Powered by GPT-5.5 (OpenAI)
 """.strip()
 
 
 async def handle_ask(message: discord.Message, question: str):
     """!ask 명령어 처리"""
-    client = _get_gemini_client()
+    client = _get_openai_client()
     if not client:
-        await message.reply("⚠️ Gemini API Key가 설정되지 않았습니다.")
+        await message.reply("⚠️ OpenAI API Key가 설정되지 않았습니다.")
         return
 
     # 타이핑 표시
@@ -66,16 +66,16 @@ async def handle_ask(message: discord.Message, question: str):
         last_err = None
         for attempt in range(3):
             try:
-                response = client.models.generate_content(
-                    model=GEMINI_MODEL,
-                    contents=question,
-                    config={
-                        "system_instruction": SYSTEM_PROMPT,
-                        "temperature": 0.7,
-                    },
+                response = client.chat.completions.create(
+                    model=OPENAI_MODEL,
+                    messages=[
+                        {"role": "system", "content": SYSTEM_PROMPT},
+                        {"role": "user", "content": question},
+                    ],
+                    temperature=0.7,
                 )
-                if response and response.text:
-                    answer = response.text.strip()
+                if response.choices and response.choices[0].message.content:
+                    answer = response.choices[0].message.content.strip()
                     if len(answer) > 1900:
                         answer = answer[:1900] + "\n\n...(답변이 잘렸습니다)"
                     await message.reply(f"🤖 **AI 답변**\n\n{answer}")
@@ -135,8 +135,8 @@ def run_bot():
                 await message.reply("⚠️ 메시지 고정은 관리자만 가능합니다.")
 
     print("\n🤖 AI 뉴스 봇 — 대화 모드 시작")
-    print(f"   Gemini Model: {GEMINI_MODEL}")
-    print(f"   Gemini API Key: {'✅' if GEMINI_API_KEY else '❌'}\n")
+    print(f"   OpenAI Model: {OPENAI_MODEL}")
+    print(f"   OpenAI API Key: {'✅' if OPENAI_API_KEY else '❌'}\n")
     bot.run(DISCORD_BOT_TOKEN)
 
 
