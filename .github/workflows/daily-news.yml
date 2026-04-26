@@ -1,9 +1,9 @@
 name: AI News Daily Briefing
 
 on:
-  # 매일 KST 오전 8시 실행 (UTC 23:00 = KST 08:00)
+  # 매일 KST 오전 8시 30분 실행 (UTC 23:30 = KST 08:30)
   schedule:
-    - cron: '0 23 * * *'
+    - cron: '30 23 * * *'
   
   # 수동 실행 버튼 (GitHub 웹에서 테스트용)
   workflow_dispatch:
@@ -27,5 +27,5 @@ jobs:
       - name: Run AI News Bot
         env:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: python main.py --now
