@@ -8,7 +8,7 @@ import time
 
 from openai import OpenAI
 
-from config import OPENAI_API_KEY, OPENAI_MODEL, SUMMARY_SYSTEM_PROMPT
+from config import OPENAI_API_KEY, OPENAI_MODEL, GEMINI_API_KEY, GEMINI_MODEL, SUMMARY_SYSTEM_PROMPT
 
 
 def _strip_html(text: str) -> str:
@@ -16,11 +16,78 @@ def _strip_html(text: str) -> str:
     return re.sub(r"<[^>]+>", "", text)
 
 
-def _create_client():
-    """OpenAI API 클라이언트 생성"""
-    if not OPENAI_API_KEY:
-        return None
-    return OpenAI(api_key=OPENAI_API_KEY)
+def _parse_json_response(raw_text: str) -> list:
+    """API 응답 텍스트에서 JSON 배열 파싱 (```json 감싸기 대응)"""
+    text = raw_text.strip()
+    if text.startswith("```"):
+        text = re.sub(r"^```(?:json)?\s*", "", text)
+        text = re.sub(r"\s*```$", "", text)
+    return json.loads(text)
+
+
+def _call_with_retry(client, model: str, prompt: str, provider_name: str):
+    """
+    최대 3회 재시도로 API 호출.
+    Returns: (results_list | None, fallback_needed: bool)
+      - results_list: 성공 시 파싱된 JSON 리스트
+      - fallback_needed: True면 다음 provider로 넘겨야 함
+    """
+    for attempt in range(3):
+        try:
+            response = client.chat.completions.create(
+                model=model,
+                messages=[
+                    {"role": "system", "content": SUMMARY_SYSTEM_PROMPT},
+                    {"role": "user", "content": prompt},
+                ],
+                temperature=0.1,
+            )
+            raw_text = response.choices[0].message.content if response.choices else None
+            if not raw_text:
+                print(f"  ⚠️  [{provider_name}] API 응답이 비어있습니다.")
+                return None, False
+
+            results = _parse_json_response(raw_text)
+            print(f"  ✅ [{provider_name}] API 호출 성공")
+            return results, False
+
+        except json.JSONDecodeError as e:
+            print(f"  ⚠️  [{provider_name}] JSON 파싱 실패 (시도 {attempt + 1}/3): {str(e)[:80]}")
+            if attempt < 2:
+                time.sleep(5)
+            else:
+                print(f"  ⚠️  [{provider_name}] JSON 파싱 최종 실패.")
+                return None, False
+
+        except Exception as e:
+            err_str = str(e)
+            if "429" in err_str:
+                print(f"  📋 [{provider_name}] 에러 원문: {err_str[:300]}")
+                err_lower = err_str.lower()
+
+                if "insufficient_quota" in err_lower:
+                    print(f"  ❌ [{provider_name}] 💳 크레딧 소진 → 다음 provider로 전환합니다.")
+                    return None, True  # fallback 필요
+
+                if "per_day" in err_lower or "rpd" in err_lower or "daily" in err_lower:
+                    limit_type = "📅 일일 한도(RPD) 초과"
+                elif "per_minute" in err_lower or "rpm" in err_lower or "minute" in err_lower:
+                    limit_type = "⏱️ 분당 한도(RPM) 초과"
+                else:
+                    limit_type = "🚫 API 할당량 초과"
+
+                if attempt < 2:
+                    wait = (attempt + 1) * 30
+                    print(f"  ⏳ [{provider_name}] {limit_type}, {wait}초 후 재시도... (시도 {attempt + 1}/3)")
+                    time.sleep(wait)
+                else:
+                    print(f"  ❌ [{provider_name}] {limit_type} — 3회 재시도 실패.")
+                    return None, False
+            else:
+                print(f"  ❌ [{provider_name}] API 오류: {err_str[:150]} → 다음 provider로 전환")
+                return None, True  # fallback 시도
+
+    return None, False
 
 
 def _build_batch_prompt(articles: list[dict]) -> str:
@@ -62,87 +129,52 @@ def _build_batch_prompt(articles: list[dict]) -> str:
 def summarize_articles(articles: list[dict]) -> list[dict]:
     """
     기사 리스트를 1회 API 호출로 분류+요약.
+    OpenAI 우선 시도, 크레딧 소진 시 Gemini로 자동 폴백.
     TECH 기사만 필터링하여 ai_summary 포함해 반환.
     """
-    if not OPENAI_API_KEY:
-        print("  ⚠️  OPENAI_API_KEY가 설정되지 않았습니다. 요약을 건너맜니다.")
-        for art in articles:
-            art["ai_summary"] = ""
-        return articles
-
-    client = _create_client()
-    if not client:
-        for art in articles:
-            art["ai_summary"] = ""
-        return articles
-
     print(f"\n🤖 {len(articles)}개 기사 일괄 분류 + 요약 중... (1회 API 호출)")
 
+    # 사용할 provider 목록 구성 (순서대로 시도)
+    providers = []
+    if OPENAI_API_KEY:
+        providers.append((
+            OpenAI(api_key=OPENAI_API_KEY),
+            OPENAI_MODEL,
+            "OpenAI",
+        ))
+    if GEMINI_API_KEY:
+        providers.append((
+            OpenAI(
+                api_key=GEMINI_API_KEY,
+                base_url="https://generativelanguage.googleapis.com/v1beta/openai/",
+            ),
+            GEMINI_MODEL,
+            "Gemini",
+        ))
+
+    if not providers:
+        print("  ⚠️  API 키 없음 (OPENAI_API_KEY 또는 GEMINI_API_KEY). 요약을 건너뜁니다.")
+        for art in articles:
+            art["ai_summary"] = ""
+        return articles
+
     prompt = _build_batch_prompt(articles)
+    results = None
 
-    for attempt in range(3):
-        try:
-            response = client.chat.completions.create(
-                model=OPENAI_MODEL,
-                messages=[
-                    {"role": "system", "content": SUMMARY_SYSTEM_PROMPT},
-                    {"role": "user", "content": prompt},
-                ],
-                temperature=0.1,
-            )
-            raw_text = response.choices[0].message.content if response.choices else None
-            if not raw_text:
-                print("  ⚠️  API 응답이 비어있습니다. 전체 기사를 요약 없이 전송합니다.")
-                for art in articles:
-                    art["ai_summary"] = ""
-                return articles
-
-            # JSON 파싱 (```json ... ``` 감싸기 대응)
-            text = raw_text.strip()
-            if text.startswith("```"):
-                text = re.sub(r"^```(?:json)?\s*", "", text)
-                text = re.sub(r"\s*```$", "", text)
-
-            results = json.loads(text)
+    for client, model, name in providers:
+        print(f"  🔄 [{name}] {model} 호출 중...")
+        results, fallback_needed = _call_with_retry(client, model, prompt, name)
+        if results is not None:
             break
-        except json.JSONDecodeError as e:
-            print(f"  ⚠️  JSON 파싱 실패 (시도 {attempt + 1}/3): {str(e)[:80]}")
-            if attempt < 2:
-                time.sleep(5)
-            else:
-                print("  ⚠️  JSON 파싱 최종 실패. 전체 기사를 요약 없이 전송합니다.")
-                for art in articles:
-                    art["ai_summary"] = ""
-                return articles
-        except Exception as e:
-            err_str = str(e)
-            if "429" in err_str:
-                # 에러 원문 출력 (RPM/RPD 디버깅용)
-                print(f"  📋 에러 원문: {err_str[:300]}")
+        if not fallback_needed:
+            break
+        # fallback_needed=True → 다음 provider로 계속
 
-                # 에러 메시지에서 RPM/RPD 구분
-                err_lower = err_str.lower()
-                if "per_day" in err_lower or "rpd" in err_lower or "daily" in err_lower:
-                    limit_type = "📅 일일 한도(RPD) 초과"
-                elif "per_minute" in err_lower or "rpm" in err_lower or "minute" in err_lower:
-                    limit_type = "⏱️ 분당 한도(RPM) 초과"
-                else:
-                    limit_type = "🚫 API 할당량 초과 (유형 불명)"
-
-                if attempt < 2:
-                    wait = (attempt + 1) * 30
-                    print(f"  ⏳ {limit_type}, {wait}초 후 재시도... (시도 {attempt + 1}/3)")
-                    time.sleep(wait)
-                else:
-                    print(f"  ❌ {limit_type} — 3회 재시도 실패. 요약 없이 전송합니다.")
-                    for art in articles:
-                        art["ai_summary"] = ""
-                    return articles
-            else:
-                print(f"  ❌ API 오류: {err_str[:150]}")
-                for art in articles:
-                    art["ai_summary"] = ""
-                return articles
+    if results is None:
+        print("  ⚠️  모든 API 호출 실패. 요약 없이 전송합니다.")
+        for art in articles:
+            art["ai_summary"] = ""
+        return articles
 
     # 결과 매핑
     result_map = {r["id"]: r for r in results}

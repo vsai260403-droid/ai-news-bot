@@ -15,6 +15,10 @@ DISCORD_BOT_TOKEN = os.getenv("DISCORD_BOT_TOKEN", "")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
 OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-5.5")
 
+# ── Google Gemini API (OpenAI 크레딧 소진 시 자동 폴백) ──
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.0-flash")
+
 # ── 스케줄 ──
 SEND_TIME = os.getenv("SEND_TIME", "08:00")  # KST 기준 24시간 형식
 
@@ -57,11 +61,6 @@ RSS_FEEDS = [
         "name": "Google AI Blog",
         "url": "https://blog.google/technology/ai/rss/",
         "emoji": "🔵",
-    },
-    {
-        "name": "Anthropic Blog",
-        "url": "https://www.anthropic.com/rss.xml",
-        "emoji": "🟤",
     },
     {
         "name": "GitHub Blog",

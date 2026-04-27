@@ -9,6 +9,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 import feedparser
+import requests
 
 from config import AI_KEYWORDS, RSS_FEEDS, SENT_ARTICLES_PATH
 
@@ -89,13 +90,22 @@ def fetch_articles(hours: int = 24) -> list[dict]:
         print(f"  📡 [{source_name}] 수집 중...")
 
         try:
-            feed = feedparser.parse(feed_url)
+            resp = requests.get(
+                feed_url,
+                headers={"User-Agent": "Mozilla/5.0 (compatible; AINewsBot/1.0; RSS Reader)"},
+                timeout=15,
+            )
+            resp.raise_for_status()
+            feed = feedparser.parse(resp.content)
+        except requests.RequestException as e:
+            print(f"  ⚠️  [{source_name}] 피드 요청 실패: {e}")
+            continue
         except Exception as e:
             print(f"  ⚠️  [{source_name}] 피드 파싱 실패: {e}")
             continue
 
         if feed.bozo and not feed.entries:
-            print(f"  ⚠️  [{source_name}] 피드 오류: {getattr(feed, 'bozo_exception', 'unknown')}")
+            print(f"  ⚠️  [{source_name}] 피드 파싱 오류: {getattr(feed, 'bozo_exception', 'unknown')}")
             continue
 
         for entry in feed.entries:
