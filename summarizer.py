@@ -148,7 +148,7 @@ def summarize_articles(articles: list[dict]) -> list[dict]:
                 api_key=GEMINI_API_KEY,
                 base_url="https://generativelanguage.googleapis.com/v1beta/openai/",
             ),
-            GEMINI_MODEL,
+            "gemini-2.5-flash",
             "Gemini",
         ))
 
