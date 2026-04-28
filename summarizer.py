@@ -8,7 +8,7 @@ import time
 
 from openai import OpenAI
 
-from config import OPENAI_API_KEY, OPENAI_MODEL, GEMINI_API_KEY, GEMINI_MODEL, SUMMARY_SYSTEM_PROMPT
+from config import OPENAI_API_KEY, OPENAI_MODEL, GEMINI_API_KEY, GEMINI_MODEL, SUMMARY_SYSTEM_PROMPT, TECH_CONCEPTS
 
 
 def _strip_html(text: str) -> str:
@@ -218,3 +218,67 @@ if __name__ == "__main__":
     result = summarize_articles(test_articles)
     for art in result:
         print(f"  [{art['title']}] {art.get('ai_summary', '')}")
+
+
+def generate_daily_concept() -> dict | None:
+    """
+    오늘의 AI 기술 개념을 Gemini가 쉽게 설명해주는 카드를 생성.
+    날짜 기반으로 매일 다른 개념을 순환.
+    Returns: {"concept": str, "explanation": str, "example": str} or None
+    """
+    from datetime import datetime, timezone, timedelta
+
+    KST = timezone(timedelta(hours=9))
+    day_of_year = datetime.now(KST).timetuple().tm_yday
+    concept = TECH_CONCEPTS[day_of_year % len(TECH_CONCEPTS)]
+
+    print(f"\n🎓 오늘의 AI 개념 생성 중: [{concept}]")
+
+    prompt = f"""당신은 AI 기술을 쉽게 가르쳐주는 전문가입니다.
+오늘의 AI 기술 개념을 아래 형식대로 설명해주세요.
+
+개념: {concept}
+
+[출력 형식 - 반드시 JSON으로만, 다른 텍스트 없이]
+{{
+  "concept_short": "개념의 짧은 이름 (예: MCP, RAG, LoRA)",
+  "one_line": "한 줄 정의 (30자 이내)",
+  "explanation": "실무 엔지니어 관점에서 3~4문장으로 설명. 왜 중요한지, 어떻게 동작하는지 포함.",
+  "analogy": "비전공자도 이해할 수 있는 현실 세계 비유 1~2문장",
+  "use_case": "실제 적용 예시 1개 (구체적인 제품이나 코드 사용 사례)"
+}}"""
+
+    providers = []
+    if GEMINI_API_KEY:
+        providers.append((
+            OpenAI(
+                api_key=GEMINI_API_KEY,
+                base_url="https://generativelanguage.googleapis.com/v1beta/openai/",
+            ),
+            "gemini-2.5-flash",
+            "Gemini",
+        ))
+    if OPENAI_API_KEY:
+        providers.append((
+            OpenAI(api_key=OPENAI_API_KEY),
+            OPENAI_MODEL,
+            "OpenAI",
+        ))
+
+    for client, model, name in providers:
+        try:
+            response = client.chat.completions.create(
+                model=model,
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0.7,
+            )
+            raw = response.choices[0].message.content or ""
+            result = _parse_json_response(raw)
+            print(f"  ✅ [{name}] 개념 카드 생성 완료")
+            return result
+        except Exception as e:
+            print(f"  ⚠️  [{name}] 개념 생성 실패: {str(e)[:100]}")
+            continue
+
+    print("  ⚠️  개념 카드 생성 실패 — 건너뜁니다.")
+    return None

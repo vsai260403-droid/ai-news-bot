@@ -22,10 +22,10 @@ if sys.stderr.encoding != "utf-8":
 
 import schedule
 
-from config import DISCORD_WEBHOOK_URL, OPENAI_API_KEY, MAX_ARTICLES, SEND_TIME
+from config import DISCORD_WEBHOOK_URLS, OPENAI_API_KEY, MAX_ARTICLES, SEND_TIME
 from collector import fetch_articles, save_sent_articles, _load_sent_articles
-from summarizer import summarize_articles
-from discord_sender import send_to_discord, send_test_message
+from summarizer import summarize_articles, generate_daily_concept
+from discord_sender import send_to_discord, send_test_message, send_concept_card
 
 
 KST = timezone(timedelta(hours=9))
@@ -84,6 +84,12 @@ def run_daily_briefing(dry_run: bool = False):
             save_sent_articles(sent)
             print("\n💾 전송 이력 저장 완료")
 
+        # 5. 오늘의 AI 기술 개념 카드 전송
+        print("\n🎓 Step 5: 오늘의 AI 기술 개념 카드 생성 및 전송")
+        concept = generate_daily_concept()
+        if concept:
+            send_concept_card(concept)
+
     print(f"\n{'='*50}")
     print(f"✅ 브리핑 완료!")
     print(f"{'='*50}\n")
@@ -92,10 +98,11 @@ def run_daily_briefing(dry_run: bool = False):
 def run_scheduler():
     """매일 지정 시간에 자동 실행"""
     print(f"⏰ 스케줄러 시작 — 매일 {SEND_TIME} (KST)에 실행됩니다.")
+    print(f"   채널 수: {len(DISCORD_WEBHOOK_URLS)}개")
     print(f"   Ctrl+C 로 종료\n")
 
     # 설정 확인
-    if not DISCORD_WEBHOOK_URL:
+    if not DISCORD_WEBHOOK_URLS:
         print("❌ 오류: .env 파일에 DISCORD_WEBHOOK_URL을 설정해주세요.")
         sys.exit(1)
 
@@ -134,7 +141,7 @@ def main():
 
     # 설정 상태 출력
     print("\n🤖 AI 뉴스 데일리 디스코드 봇")
-    print(f"   Discord Webhook: {'✅ 설정됨' if DISCORD_WEBHOOK_URL else '❌ 미설정'}")
+    print(f"   Discord Webhook: {'✅ '+str(len(DISCORD_WEBHOOK_URLS))+'개 설정됨' if DISCORD_WEBHOOK_URLS else '❌ 미설정'}")
     print(f"   OpenAI API Key:  {'✅ 설정됨' if OPENAI_API_KEY else '⚠️  미설정 (요약 비활성)'}")
     print(f"   전송 시간:       {SEND_TIME} KST")
     print(f"   최대 기사 수:    {MAX_ARTICLES}개\n")
