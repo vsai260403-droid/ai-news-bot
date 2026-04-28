@@ -128,6 +128,9 @@ AI_KEYWORDS = [
 # ── 전송 이력 파일 (중복 방지) ──
 SENT_ARTICLES_PATH = os.path.join(os.path.dirname(__file__), "data", "sent_articles.json")
 
+# ── 사용된 AI 기술 개념 이력 파일 ──
+USED_CONCEPTS_PATH = os.path.join(os.path.dirname(__file__), "data", "used_concepts.json")
+
 # ── 일일 AI 기술 개념 학습 목록 ──
 # 매일 하나씩 순환하며 Gemini가 쉽게 설명해줌
 TECH_CONCEPTS = [

@@ -8,7 +8,7 @@ import time
 
 from openai import OpenAI
 
-from config import OPENAI_API_KEY, OPENAI_MODEL, GEMINI_API_KEY, GEMINI_MODEL, SUMMARY_SYSTEM_PROMPT, TECH_CONCEPTS
+from config import OPENAI_API_KEY, OPENAI_MODEL, GEMINI_API_KEY, GEMINI_MODEL, SUMMARY_SYSTEM_PROMPT, TECH_CONCEPTS, USED_CONCEPTS_PATH
 
 
 def _strip_html(text: str) -> str:
@@ -220,21 +220,54 @@ if __name__ == "__main__":
         print(f"  [{art['title']}] {art.get('ai_summary', '')}")
 
 
+def _load_used_concepts() -> list[str]:
+    """사용된 개념 이름 목록 로드"""
+    import os
+    if not os.path.exists(USED_CONCEPTS_PATH):
+        return []
+    try:
+        with open(USED_CONCEPTS_PATH, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        return []
+
+
+def _save_used_concept(concept_short: str) -> None:
+    """사용된 개념 이름을 이력 파일에 추가"""
+    import os
+    os.makedirs(os.path.dirname(USED_CONCEPTS_PATH), exist_ok=True)
+    used = _load_used_concepts()
+    if concept_short not in used:
+        used.append(concept_short)
+    with open(USED_CONCEPTS_PATH, "w", encoding="utf-8") as f:
+        json.dump(used, f, ensure_ascii=False, indent=2)
+
+
 def generate_daily_concept() -> dict | None:
     """
-    오늘의 AI 기술 개념을 Gemini가 쉽게 설명해주는 카드를 생성.
-    날짜 기반으로 매일 다른 개념을 순환.
-    Returns: {"concept": str, "explanation": str, "example": str} or None
+    오늘의 AI 기술 개념 카드를 생성.
+    - 기본 30개 목록을 순서대로 소진 (미사용 항목 우선)
+    - 30개 모두 사용 후엔 AI가 최신 트렌드 기반으로 새 개념을 동적 생성
+    Returns: {"concept_short": str, "one_line": str, "explanation": str, "analogy": str, "use_case": str} or None
     """
-    from datetime import datetime, timezone, timedelta
+    used = _load_used_concepts()
 
-    KST = timezone(timedelta(hours=9))
-    day_of_year = datetime.now(KST).timetuple().tm_yday
-    concept = TECH_CONCEPTS[day_of_year % len(TECH_CONCEPTS)]
+    # 기본 30개 중 아직 사용하지 않은 첫 번째 항목 선택
+    concept = None
+    for c in TECH_CONCEPTS:
+        # 개념 식별자: 대시(—) 앞 부분 또는 전체
+        short_key = c.split("—")[0].strip()
+        if short_key not in used:
+            concept = c
+            break
 
-    print(f"\n🎓 오늘의 AI 개념 생성 중: [{concept}]")
+    if concept:
+        print(f"\n🎓 오늘의 AI 개념 생성 중 (기본 목록): [{concept}]")
+    else:
+        print(f"\n🎓 기본 30개 소진 — AI가 최신 트렌드 기반으로 새 개념을 동적 생성 중...")
 
-    prompt = f"""당신은 AI 기술을 쉽게 가르쳐주는 전문가입니다.
+    if concept:
+        prompt = f"""당신은 AI 기술을 쉽게 가르쳐주는 전문가입니다.
 오늘의 AI 기술 개념을 아래 형식대로 설명해주세요.
 
 개념: {concept}
@@ -242,6 +275,24 @@ def generate_daily_concept() -> dict | None:
 [출력 형식 - 반드시 JSON으로만, 다른 텍스트 없이]
 {{
   "concept_short": "개념의 짧은 이름 (예: MCP, RAG, LoRA)",
+  "one_line": "한 줄 정의 (30자 이내)",
+  "explanation": "실무 엔지니어 관점에서 3~4문장으로 설명. 왜 중요한지, 어떻게 동작하는지 포함.",
+  "analogy": "비전공자도 이해할 수 있는 현실 세계 비유 1~2문장",
+  "use_case": "실제 적용 예시 1개 (구체적인 제품이나 코드 사용 사례)"
+}}"""
+    else:
+        already_used_str = ", ".join(used[-50:])  # 최근 50개만 전달해 프롬프트 크기 제한
+        prompt = f"""당신은 AI 기술을 쉽게 가르쳐주는 전문가이자 최신 AI 트렌드 연구자입니다.
+
+아래는 이미 다룬 AI 기술 개념 목록입니다:
+{already_used_str}
+
+2024~2026년 최신 AI/ML 트렌드 중 위 목록에 없는 새로운 개념 하나를 골라 설명해주세요.
+최신 논문, 모델 출시, 프레임워크 업데이트, 업계 동향을 참고하여 트렌디하고 실용적인 개념을 선택하세요.
+
+[출력 형식 - 반드시 JSON으로만, 다른 텍스트 없이]
+{{
+  "concept_short": "개념의 짧은 이름 (예: KV Cache, Speculative Decoding)",
   "one_line": "한 줄 정의 (30자 이내)",
   "explanation": "실무 엔지니어 관점에서 3~4문장으로 설명. 왜 중요한지, 어떻게 동작하는지 포함.",
   "analogy": "비전공자도 이해할 수 있는 현실 세계 비유 1~2문장",
@@ -274,7 +325,13 @@ def generate_daily_concept() -> dict | None:
             )
             raw = response.choices[0].message.content or ""
             result = _parse_json_response(raw)
-            print(f"  ✅ [{name}] 개념 카드 생성 완료")
+            if result and isinstance(result, dict):
+                concept_short = result.get("concept_short", "")
+                if concept_short:
+                    _save_used_concept(concept_short)
+                    print(f"  ✅ [{name}] 개념 카드 생성 완료: {concept_short}")
+                else:
+                    print(f"  ✅ [{name}] 개념 카드 생성 완료")
             return result
         except Exception as e:
             print(f"  ⚠️  [{name}] 개념 생성 실패: {str(e)[:100]}")
