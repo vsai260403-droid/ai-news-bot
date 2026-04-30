@@ -109,6 +109,26 @@ RSS_FEEDS = [
         "emoji": "📖",
     },
     {
+        "name": "Anthropic Cookbook",
+        "url": "https://github.com/anthropics/anthropic-cookbook/commits/main.atom",
+        "emoji": "🧠",
+    },
+    {
+        "name": "Google Gemini Cookbook",
+        "url": "https://github.com/google-gemini/cookbook/commits/main.atom",
+        "emoji": "💎",
+    },
+    {
+        "name": "Meta AI Blog",
+        "url": "https://ai.meta.com/blog/rss/",
+        "emoji": "🦙",
+    },
+    {
+        "name": "Mistral Blog",
+        "url": "https://mistral.ai/news/rss.xml",
+        "emoji": "🌬️",
+    },
+    {
         "name": "Lilian Weng Blog",
         "url": "https://lilianweng.github.io/index.xml",
         "emoji": "🔬",
