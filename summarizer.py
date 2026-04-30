@@ -105,7 +105,7 @@ def _call_with_retry(client, model: str, prompt: str, provider_name: str):
     return None, False
 
 
-def _build_batch_prompt(articles: list[dict]) -> str:
+def _build_batch_prompt(articles: list[dict], recent_titles: list[str] = None) -> str:
     """기사들을 하나의 프롬프트로 구성 (분류+중요도+요약)"""
     article_list = []
     for i, art in enumerate(articles):
@@ -114,7 +114,37 @@ def _build_batch_prompt(articles: list[dict]) -> str:
 
     articles_text = "\n\n".join(article_list)
 
-    return f"""아래 기사들을 각각 읽고 분류+중요도 평가+요약해줘.
+    recent_section = ""
+    if recent_titles:
+        titles_str = "\n".join(f"- {t}" for t in recent_titles[:30])
+
+        # 제목에서 핵심 토픽 키워드 추출 (자주 등장하는 단어)
+        import re as _re
+        stopwords = {"a", "an", "the", "and", "or", "of", "to", "in", "for", "on", "is", "at",
+                     "ai", "new", "how", "why", "what", "with", "from", "its", "by", "as", "be"}
+        word_freq: dict[str, int] = {}
+        for t in recent_titles:
+            words = _re.findall(r"[a-zA-Z가-힣]{3,}", t.lower())
+            for w in words:
+                if w not in stopwords:
+                    word_freq[w] = word_freq.get(w, 0) + 1
+        hot_topics = [w for w, c in sorted(word_freq.items(), key=lambda x: -x[1]) if c >= 2][:10]
+        hot_str = ", ".join(hot_topics) if hot_topics else "(없음)"
+
+        recent_section = f"""\n[최근 3일간 이미 전송된 주제 — 반드시 억제]
+아래 주제들은 이미 다룬 내용입니다.
+자주 등장한 키워드: {hot_str}
+
+규칙:
+1. 위 키워드와 관련된 기사는 score를 1로 낮추고 type은 DUPLICATE로 표시하세요.
+2. 단, 어제와 완전히 다른 사건(새 버전 출시, 긴급 패치 등 명백히 새로운 발전)이라면 예외적으로 TECH 허용.
+3. "MCP 관련 글 또 왔어요" 같은 반복은 절대 금지.
+
+최근 전송된 기사 제목:
+{titles_str}
+"""
+
+    return f"""아래 기사들을 각각 읽고 분류+중요도 평가+요약해줘.{recent_section}
 
 [판단 기준]
 - TECH: AI 모델 출시, 새로운 기능, 연구 결과, 기술적 방법론, 제품 업데이트, 벤치마크, 오픈소스 등
@@ -141,11 +171,12 @@ def _build_batch_prompt(articles: list[dict]) -> str:
 {articles_text}"""
 
 
-def summarize_articles(articles: list[dict]) -> list[dict]:
+def summarize_articles(articles: list[dict], recent_titles: list[str] = None) -> list[dict]:
     """
     기사 리스트를 1회 API 호출로 분류+요약.
     OpenAI 우선 시도, 크레딧 소진 시 Gemini로 자동 폴백.
     TECH 기사만 필터링하여 ai_summary 포함해 반환.
+    recent_titles: 최근 전송된 기사 제목 목록 (주제 중복 방지)
     """
     print(f"\n🤖 {len(articles)}개 기사 일괄 분류 + 요약 중... (1회 API 호출)")
 
@@ -173,7 +204,7 @@ def summarize_articles(articles: list[dict]) -> list[dict]:
             art["ai_summary"] = ""
         return articles
 
-    prompt = _build_batch_prompt(articles)
+    prompt = _build_batch_prompt(articles, recent_titles)
     results = None
 
     for client, model, name in providers:
