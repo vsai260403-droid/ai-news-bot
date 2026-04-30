@@ -87,6 +87,21 @@ def _call_with_retry(client, model: str, prompt: str, provider_name: str):
                 print(f"  ❌ [{provider_name}] API 오류: {err_str[:150]} → 다음 provider로 전환")
                 return None, True  # fallback 시도
 
+            # 5xx 서버 오류: 재시도 후 fallback
+            is_5xx = any(code in err_str for code in ["503", "502", "500", "504"]) or \
+                     any(kw in err_str.lower() for kw in ["service unavailable", "overloaded", "server error"])
+            if is_5xx:
+                if attempt < 2:
+                    wait = (attempt + 1) * 20
+                    print(f"  ⏳ [{provider_name}] 서버 오류(5xx), {wait}초 후 재시도... (시도 {attempt + 1}/3)")
+                    time.sleep(wait)
+                else:
+                    print(f"  ❌ [{provider_name}] 서버 오류 3회 재시도 실패 → 다음 provider로 전환")
+                    return None, True
+            else:
+                print(f"  ❌ [{provider_name}] API 오류: {err_str[:150]} → 다음 provider로 전환")
+                return None, True  # fallback 시도
+
     return None, False
 
 
@@ -163,7 +178,11 @@ def summarize_articles(articles: list[dict]) -> list[dict]:
 
     for client, model, name in providers:
         print(f"  🔄 [{name}] {model} 호출 중...")
-        results, fallback_needed = _call_with_retry(client, model, prompt, name)
+        try:
+            results, fallback_needed = _call_with_retry(client, model, prompt, name)
+        except Exception as e:
+            print(f"  ❌ [{name}] 예상치 못한 오류: {str(e)[:150]}")
+            results, fallback_needed = None, True
         if results is not None:
             break
         if not fallback_needed:
