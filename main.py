@@ -1,9 +1,8 @@
 """
-AI 뉴스 데일리 디스코드 봇 — 메인 실행 & 스케줄러
+AI 뉴스 데일리 디스코드 봇
 
 사용법:
-    python main.py           # 스케줄러 모드 (매일 자동 실행)
-    python main.py --now     # 즉시 실행
+    python main.py           # 즉시 실행
     python main.py --dry-run # 수집 & 요약만 (전송하지 않음)
     python main.py --test    # 디스코드 테스트 메시지 전송
 """
@@ -11,7 +10,6 @@ AI 뉴스 데일리 디스코드 봇 — 메인 실행 & 스케줄러
 import argparse
 import io
 import sys
-import time
 from datetime import datetime, timezone, timedelta
 
 # Windows 콘솔 UTF-8 출력 설정 (이모지/한글 깨짐 방지)
@@ -20,9 +18,7 @@ if sys.stdout.encoding != "utf-8":
 if sys.stderr.encoding != "utf-8":
     sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="replace")
 
-import schedule
-
-from config import DISCORD_WEBHOOK_URLS, OPENAI_API_KEY, MAX_ARTICLES, SEND_TIME
+from config import DISCORD_WEBHOOK_URLS, OPENAI_API_KEY, MAX_ARTICLES
 from collector import fetch_articles, save_sent_articles, _load_sent_articles
 from summarizer import summarize_articles, generate_daily_concept
 from discord_sender import send_to_discord, send_test_message, send_concept_card
@@ -95,29 +91,6 @@ def run_daily_briefing(dry_run: bool = False):
     print(f"{'='*50}\n")
 
 
-def run_scheduler():
-    """매일 지정 시간에 자동 실행"""
-    print(f"⏰ 스케줄러 시작 — 매일 {SEND_TIME} (KST)에 실행됩니다.")
-    print(f"   채널 수: {len(DISCORD_WEBHOOK_URLS)}개")
-    print(f"   Ctrl+C 로 종료\n")
-
-    # 설정 확인
-    if not DISCORD_WEBHOOK_URLS:
-        print("❌ 오류: .env 파일에 DISCORD_WEBHOOK_URL을 설정해주세요.")
-        sys.exit(1)
-
-    # SEND_TIME 정각에 실행 (배치 1회 호출이라 수 초 내 완료)
-    schedule.every().day.at(SEND_TIME).do(run_daily_briefing)
-
-    # 다음 실행 시간 표시
-    next_run = schedule.next_run()
-    if next_run:
-        print(f"   다음 실행: {next_run}")
-
-    while True:
-        schedule.run_pending()
-        time.sleep(30)
-
 
 def main():
     parser = argparse.ArgumentParser(
@@ -125,14 +98,12 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 예시:
-  python main.py              매일 자동 실행 (스케줄러)
-  python main.py --now        지금 바로 실행
+  python main.py              지금 바로 실행
   python main.py --dry-run    수집 & 요약만 (전송 X)
   python main.py --bot        대화형 봇 모드 (!ask 질문)
   python main.py --test       디스코드 연결 테스트
         """
     )
-    parser.add_argument("--now", action="store_true", help="즉시 실행")
     parser.add_argument("--dry-run", action="store_true", help="수집 & 요약만 (전송하지 않음)")
     parser.add_argument("--test", action="store_true", help="디스코드 테스트 메시지 전송")
     parser.add_argument("--bot", action="store_true", help="대화형 봇 모드 (!ask 질문)")
@@ -143,7 +114,6 @@ def main():
     print("\n🤖 AI 뉴스 데일리 디스코드 봇")
     print(f"   Discord Webhook: {'✅ '+str(len(DISCORD_WEBHOOK_URLS))+'개 설정됨' if DISCORD_WEBHOOK_URLS else '❌ 미설정'}")
     print(f"   OpenAI API Key:  {'✅ 설정됨' if OPENAI_API_KEY else '⚠️  미설정 (요약 비활성)'}")
-    print(f"   전송 시간:       {SEND_TIME} KST")
     print(f"   최대 기사 수:    {MAX_ARTICLES}개\n")
 
     if args.test:
@@ -151,10 +121,8 @@ def main():
     elif args.bot:
         from discord_bot import run_bot
         run_bot()
-    elif args.now or args.dry_run:
-        run_daily_briefing(dry_run=args.dry_run)
     else:
-        run_scheduler()
+        run_daily_briefing(dry_run=args.dry_run)
 
 
 if __name__ == "__main__":

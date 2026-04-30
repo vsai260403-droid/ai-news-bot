@@ -21,9 +21,6 @@ OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-5.5")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
 GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
 
-# ── 스케줄 ──
-SEND_TIME = os.getenv("SEND_TIME", "08:00")  # KST 기준 24시간 형식
-
 # ── 기사 설정 ──
 MAX_ARTICLES = int(os.getenv("MAX_ARTICLES", "15"))
 
