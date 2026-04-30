@@ -102,6 +102,22 @@ RSS_FEEDS = [
         "url": "https://hnrss.org/newest?q=MCP+OR+%22model+context+protocol%22+OR+%22agentic%22+OR+%22agent+framework%22&points=30&count=20",
         "emoji": "🔧",
     },
+    # ── 프롬프팅 & 개발자 가이드 소스 ──
+    {
+        "name": "OpenAI Cookbook",
+        "url": "https://github.com/openai/openai-cookbook/commits/main.atom",
+        "emoji": "📖",
+    },
+    {
+        "name": "Lilian Weng Blog",
+        "url": "https://lilianweng.github.io/index.xml",
+        "emoji": "🔬",
+    },
+    {
+        "name": "PromptingGuide.ai",
+        "url": "https://www.promptingguide.ai/rss.xml",
+        "emoji": "💡",
+    },
 ]
 
 # ── AI 관련 키워드 (필터링용) ──
