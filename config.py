@@ -22,7 +22,7 @@ GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
 GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
 
 # ── 기사 설정 ──
-MAX_ARTICLES = int(os.getenv("MAX_ARTICLES", "15"))
+MAX_ARTICLES = int(os.getenv("MAX_ARTICLES", "10"))
 
 # ── RSS 피드 소스 ──
 RSS_FEEDS = [
