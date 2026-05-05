@@ -377,8 +377,11 @@ def generate_daily_concept() -> dict | None:
             result = _parse_json_response(raw)
             if result and isinstance(result, dict):
                 concept_short = result.get("concept_short", "")
-                if concept_short:
-                    _save_used_concept(concept_short)
+                # TECH_CONCEPTS 목록 기반 항목은 목록의 키(—앞 부분)로 저장해야
+                # 다음 실행 시 short_key 비교가 일치함
+                save_key = concept.split("—")[0].strip() if concept else concept_short
+                if save_key:
+                    _save_used_concept(save_key)
                     print(f"  ✅ [{name}] 개념 카드 생성 완료: {concept_short}")
                 else:
                     print(f"  ✅ [{name}] 개념 카드 생성 완료")

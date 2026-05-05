@@ -160,6 +160,7 @@ AI_KEYWORDS = [
 
 # ── 전송 이력 파일 (중복 방지) ──
 SENT_ARTICLES_PATH = os.path.join(os.path.dirname(__file__), "data", "sent_articles.json")
+SENT_TITLES_PATH = os.path.join(os.path.dirname(__file__), "data", "sent_titles.json")
 
 # ── 사용된 AI 기술 개념 이력 파일 ──
 USED_CONCEPTS_PATH = os.path.join(os.path.dirname(__file__), "data", "used_concepts.json")

@@ -19,7 +19,7 @@ if sys.stderr.encoding != "utf-8":
     sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="replace")
 
 from config import DISCORD_WEBHOOK_URLS, OPENAI_API_KEY, MAX_ARTICLES
-from collector import fetch_articles, save_sent_articles, _load_sent_articles
+from collector import fetch_articles, save_sent_articles, _load_sent_articles, load_recent_titles, save_sent_titles
 from summarizer import summarize_articles, generate_daily_concept
 from discord_sender import send_to_discord, send_test_message, send_concept_card
 
@@ -52,7 +52,10 @@ def run_daily_briefing(dry_run: bool = False):
 
     # 3. AI 분류 + 요약 (비즈니스 뉴스 자동 제외)
     print("\n🤖 Step 3: OpenAI API로 기사 분류 및 한국어 요약 생성")
-    articles = summarize_articles(articles)
+    recent_titles = load_recent_titles(days=3)
+    if recent_titles:
+        print(f"  📋 최근 3일 전송 주제 {len(recent_titles)}개 로드 (중복 방지)")
+    articles = summarize_articles(articles, recent_titles=recent_titles)
 
     # 최종 상위 N개 제한
     articles = articles[:MAX_ARTICLES]
@@ -78,6 +81,7 @@ def run_daily_briefing(dry_run: bool = False):
             for art in articles:
                 sent[art["url"]] = now_iso
             save_sent_articles(sent)
+            save_sent_titles(articles)
             print("\n💾 전송 이력 저장 완료")
 
         # 5. 오늘의 AI 기술 개념 카드 전송

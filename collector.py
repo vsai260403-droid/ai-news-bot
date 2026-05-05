@@ -11,7 +11,39 @@ from typing import Optional
 import feedparser
 import requests
 
-from config import AI_KEYWORDS, RSS_FEEDS, SENT_ARTICLES_PATH
+from config import AI_KEYWORDS, RSS_FEEDS, SENT_ARTICLES_PATH, SENT_TITLES_PATH
+
+
+def load_recent_titles(days: int = 3) -> list[str]:
+    """최근 N일치 전송된 기사 제목 목록 반환 (주제 중복 방지용)"""
+    if not os.path.exists(SENT_TITLES_PATH):
+        return []
+    try:
+        with open(SENT_TITLES_PATH, "r", encoding="utf-8") as f:
+            data = json.load(f)
+    except (json.JSONDecodeError, IOError):
+        return []
+    cutoff = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
+    return [entry["title"] for entry in data if entry.get("ts", "") > cutoff]
+
+
+def save_sent_titles(articles: list[dict]):
+    """전송된 기사 제목을 누적 저장 (30일치 유지)"""
+    existing = []
+    if os.path.exists(SENT_TITLES_PATH):
+        try:
+            with open(SENT_TITLES_PATH, "r", encoding="utf-8") as f:
+                existing = json.load(f)
+        except (json.JSONDecodeError, IOError):
+            existing = []
+    cutoff = (datetime.now(timezone.utc) - timedelta(days=30)).isoformat()
+    existing = [e for e in existing if e.get("ts", "") > cutoff]
+    now_iso = datetime.now(timezone.utc).isoformat()
+    for art in articles:
+        existing.append({"title": art["title"], "ts": now_iso})
+    _ensure_data_dir()
+    with open(SENT_TITLES_PATH, "w", encoding="utf-8") as f:
+        json.dump(existing, f, ensure_ascii=False, indent=2)
 
 
 def _ensure_data_dir():
