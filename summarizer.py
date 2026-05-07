@@ -312,6 +312,10 @@ def generate_daily_concept() -> dict | None:
             break
 
     if concept:
+        # ✅ API 호출 전에 미리 저장 — API 실패 시에도 다음 실행에서 중복 방지
+        save_key = concept.split("—")[0].strip()
+        if save_key:
+            _save_used_concept(save_key)
         print(f"\n🎓 오늘의 AI 개념 생성 중 (기본 목록): [{concept}]")
     else:
         print(f"\n🎓 기본 30개 소진 — AI가 최신 트렌드 기반으로 새 개념을 동적 생성 중...")
@@ -377,14 +381,12 @@ def generate_daily_concept() -> dict | None:
             result = _parse_json_response(raw)
             if result and isinstance(result, dict):
                 concept_short = result.get("concept_short", "")
-                # TECH_CONCEPTS 목록 기반 항목은 목록의 키(—앞 부분)로 저장해야
-                # 다음 실행 시 short_key 비교가 일치함
-                save_key = concept.split("—")[0].strip() if concept else concept_short
-                if save_key:
-                    _save_used_concept(save_key)
-                    print(f"  ✅ [{name}] 개념 카드 생성 완료: {concept_short}")
-                else:
-                    print(f"  ✅ [{name}] 개념 카드 생성 완료")
+                # 동적 생성(기본 목록 소진 후)인 경우에만 여기서 저장
+                if not concept and concept_short:
+                    _save_used_concept(concept_short)
+                print(f"  ✅ [{name}] 개념 카드 생성 완료: {concept_short}")
+            else:
+                print(f"  ✅ [{name}] 개념 카드 생성 완료")
             return result
         except Exception as e:
             print(f"  ⚠️  [{name}] 개념 생성 실패: {str(e)[:100]}")
