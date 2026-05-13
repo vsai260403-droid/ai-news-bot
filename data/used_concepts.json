@@ -4,5 +4,6 @@
   "Agentic Workflow",
   "RAG (Retrieval-Augmented Generation)",
   "SKILL (in Agent Frameworks)",
-  "HOOK"
+  "HOOK",
+  "Evaluation Harness"
 ]
