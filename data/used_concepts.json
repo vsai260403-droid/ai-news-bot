@@ -6,5 +6,6 @@
   "SKILL (in Agent Frameworks)",
   "HOOK",
   "Evaluation Harness",
-  "Function Calling / Tool Use"
+  "Function Calling / Tool Use",
+  "Prompt Engineering"
 ]
