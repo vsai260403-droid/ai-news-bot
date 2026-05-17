@@ -1,0 +1,10 @@
+[Unit]
+Description=AI News Daily Briefing Timer (매일 오전 9시 KST)
+
+[Timer]
+# 9시 KST = 00:00 UTC
+OnCalendar=*-*-* 00:00:00 UTC
+Persistent=true
+
+[Install]
+WantedBy=timers.target

@@ -1,0 +1,16 @@
+[Unit]
+Description=AI News Daily Briefing (매일 9시 KST)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=ubuntu
+WorkingDirectory=/opt/ai-news-bot
+ExecStart=/opt/ai-news-bot/venv/bin/python main.py
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=ai-news-daily
+
+# 환경변수 파일 (.env)
+EnvironmentFile=/opt/ai-news-bot/.env

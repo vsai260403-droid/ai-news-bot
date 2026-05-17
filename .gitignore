@@ -9,6 +9,10 @@ __pycache__/
 # 전송 이력 데이터
 data/sent_articles.json
 
+# 로그 & PID
+logs/
+*.pid
+
 # IDE
 .vscode/
 .idea/
