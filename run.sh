@@ -10,7 +10,7 @@
 # ==================================================
 
 APP_DIR="$(cd "$(dirname "$0")" && pwd)"
-PYTHON="$APP_DIR/venv/bin/python"
+PYTHON="$(command -v python3 || command -v python)"
 LOG_DIR="$APP_DIR/logs"
 BOT_PID="$APP_DIR/bot.pid"
 SCHEDULER_PID="$APP_DIR/scheduler.pid"
@@ -66,14 +66,10 @@ start() {
         exit 1
     fi
 
-    # venv 확인
-    if [ ! -f "$PYTHON" ]; then
-        echo "📦 Python 가상환경 생성 중..."
-        python3 -m venv "$APP_DIR/venv"
-        "$APP_DIR/venv/bin/pip" install --quiet --upgrade pip
-        "$APP_DIR/venv/bin/pip" install --quiet -r "$APP_DIR/requirements.txt"
-        echo "✅ 의존성 설치 완료"
-    fi
+    # 의존성 설치
+    echo "📦 패키지 설치 중..."
+    pip3 install --quiet -r "$APP_DIR/requirements.txt"
+    echo "✅ 의존성 설치 완료"
 
     # 이미 실행 중인지 확인
     if [ -f "$BOT_PID" ] && kill -0 "$(cat "$BOT_PID")" 2>/dev/null; then

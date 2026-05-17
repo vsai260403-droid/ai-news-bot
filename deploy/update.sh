@@ -11,7 +11,7 @@ echo "🔄 코드 업데이트 중..."
 git -C "$APP_DIR" pull
 
 echo "📦 의존성 업데이트 중..."
-"$APP_DIR/venv/bin/pip" install --quiet -r "$APP_DIR/requirements.txt"
+pip3 install --quiet -r "$APP_DIR/requirements.txt"
 
 echo "🔁 봇 재시작 중..."
 systemctl restart ai-news-bot
