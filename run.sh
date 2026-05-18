@@ -41,7 +41,8 @@ status() {
             if kill -0 "$PID" 2>/dev/null; then
                 echo "  ✅ $NAME 실행 중 (PID: $PID)"
             else
-                echo "  ❌ $NAME 종료됨 (PID 파일 남아있음)"
+                echo "  ❌ $NAME 종료됨 — PID 파일 정리 (로그: bash run.sh logs)"
+                rm -f "$PID_FILE"
             fi
         else
             echo "  ⬜ $NAME 실행 안 됨"
