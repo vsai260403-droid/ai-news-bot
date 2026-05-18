@@ -7,17 +7,27 @@ import asyncio
 import discord
 from openai import OpenAI
 
-from config import DISCORD_BOT_TOKEN, OPENAI_API_KEY, OPENAI_MODEL
+from config import DISCORD_BOT_TOKEN, OPENAI_API_KEY, OPENAI_MODEL, GEMINI_API_KEY, GEMINI_MODEL
 
-# OpenAI 클라이언트
-_openai_client = None
-
-
-def _get_openai_client():
-    global _openai_client
-    if _openai_client is None and OPENAI_API_KEY:
-        _openai_client = OpenAI(api_key=OPENAI_API_KEY)
-    return _openai_client
+# API 클라이언트 목록: (client, model_name, provider_name) 순서대로 시도
+def _build_clients():
+    clients = []
+    if OPENAI_API_KEY:
+        clients.append((
+            OpenAI(api_key=OPENAI_API_KEY),
+            OPENAI_MODEL,
+            "OpenAI"
+        ))
+    if GEMINI_API_KEY:
+        clients.append((
+            OpenAI(
+                api_key=GEMINI_API_KEY,
+                base_url="https://generativelanguage.googleapis.com/v1beta/openai/",
+            ),
+            GEMINI_MODEL,
+            "Gemini"
+        ))
+    return clients
 
 
 SYSTEM_PROMPT = """당신은 AI/기술 분야 전문 어시스턴트입니다.
@@ -55,19 +65,17 @@ WELCOME_MESSAGE = """
 
 
 async def handle_ask(message: discord.Message, question: str):
-    """!ask 명령어 처리"""
-    client = _get_openai_client()
-    if not client:
-        await message.reply("⚠️ OpenAI API Key가 설정되지 않았습니다.")
+    """!ask 명령어 처리 — OpenAI 실패 시 Gemini 자동 폴백"""
+    clients = _build_clients()
+    if not clients:
+        await message.reply("⚠️ API Key가 설정되지 않았습니다. (OPENAI_API_KEY 또는 GEMINI_API_KEY)")
         return
 
-    # 타이핑 표시
     async with message.channel.typing():
-        last_err = None
-        for attempt in range(3):
+        for client, model, provider in clients:
             try:
                 response = client.chat.completions.create(
-                    model=OPENAI_MODEL,
+                    model=model,
                     messages=[
                         {"role": "system", "content": SYSTEM_PROMPT},
                         {"role": "user", "content": question},
@@ -78,19 +86,19 @@ async def handle_ask(message: discord.Message, question: str):
                     answer = response.choices[0].message.content.strip()
                     if len(answer) > 1900:
                         answer = answer[:1900] + "\n\n...(답변이 잘렸습니다)"
-                    await message.reply(f"🤖 **AI 답변**\n\n{answer}")
-                else:
-                    await message.reply("⚠️ AI 응답이 비어있습니다. 다시 시도해주세요.")
-                return
+                    await message.reply(f"🤖 **AI 답변** ({provider})\n\n{answer}")
+                    return
             except Exception as e:
-                last_err = str(e)
-                print(f"  [LOG] API 오류 (시도 {attempt+1}/3): {last_err[:150]}")
-                if "503" in last_err or "UNAVAILABLE" in last_err:
-                    await asyncio.sleep(2 * (attempt + 1))
+                err = str(e)
+                print(f"  [LOG] {provider} 오류: {err[:150]}")
+                # 크레딧 소진 / 인증 오류 → 다음 provider로 폴백
+                if any(code in err for code in ["429", "402", "401", "insufficient_quota"]):
+                    print(f"  [LOG] {provider} → 다음 provider로 폴백")
                     continue
-                break
-        print(f"  [LOG] 3회 재시도 실패: {last_err[:200]}")
-        await message.reply("⚠️ 잠시 후 다시 시도해주세요.")
+                # 그 외 오류도 폴백 시도
+                continue
+
+        await message.reply("⚠️ 모든 AI 서비스 응답 실패. 잠시 후 다시 시도해주세요.")
 
 
 def run_bot():

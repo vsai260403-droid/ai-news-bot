@@ -15,7 +15,7 @@ DISCORD_BOT_TOKEN = os.getenv("DISCORD_BOT_TOKEN", "")
 
 # ── OpenAI API ──
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
-OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-5.5")
+OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4o")
 
 # ── Google Gemini API (OpenAI 크레딧 소진 시 자동 폴백) ──
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
