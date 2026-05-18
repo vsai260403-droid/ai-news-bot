@@ -96,10 +96,14 @@ start() {
     echo "   실시간 스케줄러: tail -f $LOG_DIR/scheduler.log"
 }
 
-case "${1:-start}" in
-    stop)   stop ;;
-    status) status ;;
-    logs)   logs ;;
+case "${1}" in
+    ""| start) start ;;
+    stop)    stop ;;
+    status)  status ;;
+    logs)    logs ;;
     restart) stop; sleep 2; start ;;
-    *)      start ;;
+    *)
+        echo "사용법: bash run.sh [start|stop|status|logs|restart]"
+        exit 1
+        ;;
 esac
