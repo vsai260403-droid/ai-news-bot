@@ -1,6 +1,7 @@
 """
 AI 뉴스 데일리 디스코드 봇 — RSS 뉴스 수집기
 """
+from __future__ import annotations
 
 import json
 import os

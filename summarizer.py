@@ -1,6 +1,7 @@
 """
 AI 뉴스 데일리 디스코드 봇 — GPT 기반 뉴스 요약기 (배치 처리)
 """
+from __future__ import annotations
 
 import json
 import re

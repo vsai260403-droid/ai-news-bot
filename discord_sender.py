@@ -1,6 +1,7 @@
 """
 AI 뉴스 데일리 디스코드 봇 — 디스코드 전송 모듈
 """
+from __future__ import annotations
 
 from datetime import datetime, timezone, timedelta
 
