@@ -37,10 +37,10 @@ def _build_embeds(articles: list[dict]) -> list[DiscordEmbed]:
         )
         embed.set_footer(text=f"{emoji} {source}")
 
-        # 발행일
+        # 발행일 (set_timestamp는 datetime 객체를 받아 내부에서 .isoformat() 호출)
         if art.get("published"):
             pub = art["published"]
-            embed.set_timestamp(pub.isoformat())
+            embed.set_timestamp(pub)
 
         embeds.append(embed)
 

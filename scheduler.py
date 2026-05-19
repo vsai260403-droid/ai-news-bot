@@ -91,6 +91,14 @@ def main():
 
         time.sleep(wait_sec)
 
+        # ── sleep 조기 종료 방지: 실제 목표 시각에 도달했는지 확인 ──
+        _now = datetime.now(KST)
+        _target_today = _now.replace(hour=TARGET_HOUR, minute=TARGET_MINUTE, second=0, microsecond=0)
+        _elapsed = (_now - _target_today).total_seconds()
+        if _elapsed < -30:  # 목표 시각까지 30초 이상 남았으면 조기 종료된 sleep
+            print(f"[Scheduler] ⚠️  sleep 조기 종료 감지 (현재: {_now.strftime('%H:%M')}, 목표: {TARGET_HOUR:02d}:{TARGET_MINUTE:02d}, {-_elapsed/60:.1f}분 남음). 계속 대기...")
+            continue
+
         # 발송 실행
         print(f"\n[Scheduler] ⏰ {TARGET_HOUR:02d}:{TARGET_MINUTE:02d} 도달 — 뉴스 브리핑 시작")
         sys.stdout.flush()
