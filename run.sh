@@ -102,7 +102,17 @@ case "${1}" in
     stop)    stop ;;
     status)  status ;;
     logs)    logs ;;
-    restart) stop; sleep 2; start ;;
+    restart)
+        # PID 파일 기반 종료
+        stop
+        # PID 파일에 없는 잔여 프로세스도 전부 종료
+        pkill -f scheduler.py 2>/dev/null && echo "  잔여 scheduler.py 종료" || true
+        pkill -f discord_bot.py 2>/dev/null && echo "  잔여 discord_bot.py 종료" || true
+        # PID 파일 잔여물 정리
+        rm -f "$BOT_PID" "$SCHEDULER_PID"
+        sleep 2
+        start
+        ;;
     *)
         echo "사용법: bash run.sh [start|stop|status|logs|restart]"
         exit 1
