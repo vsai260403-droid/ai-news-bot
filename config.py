@@ -19,7 +19,7 @@ OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4o")
 
 # ── Google Gemini API (OpenAI 크레딧 소진 시 자동 폴백) ──
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
-GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash-lite")
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.1-flash-lite")
 
 # ── 기사 설정 ──
 MAX_ARTICLES = int(os.getenv("MAX_ARTICLES", "10"))
