@@ -166,7 +166,7 @@ def _build_batch_prompt(articles: list[dict], recent_titles: list[str] = None) -
   ...
 ]
 
-- TECH 기사: score(1~10) + summary에 한국어로 2~3문장 요약
+- TECH 기사: score(1~10) + summary에 한국어로 요약해주는데 내용이 충분히 이해될 수 있도록 요약해줘야해.
 - BUSINESS / DUPLICATE 기사: score는 0, summary는 빈 문자열
 
 {articles_text}"""
