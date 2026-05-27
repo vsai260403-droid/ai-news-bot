@@ -62,9 +62,12 @@ def _call_with_retry(client, model: str, prompt: str, provider_name: str):
 
         except Exception as e:
             err_str = str(e)
+            err_lower = err_str.lower()
+            is_5xx = any(code in err_str for code in ["503", "502", "500", "504"]) or \
+                     any(kw in err_lower for kw in ["service unavailable", "overloaded", "server error"])
+
             if "429" in err_str:
                 print(f"  📋 [{provider_name}] 에러 원문: {err_str[:300]}")
-                err_lower = err_str.lower()
 
                 if "insufficient_quota" in err_lower:
                     print(f"  ❌ [{provider_name}] 💳 크레딧 소진 → 다음 provider로 전환합니다.")
@@ -84,24 +87,20 @@ def _call_with_retry(client, model: str, prompt: str, provider_name: str):
                 else:
                     print(f"  ❌ [{provider_name}] {limit_type} — 3회 재시도 실패.")
                     return None, False
-            else:
-                print(f"  ❌ [{provider_name}] API 오류: {err_str[:150]} → 다음 provider로 전환")
-                return None, True  # fallback 시도
 
-            # 5xx 서버 오류: 재시도 후 fallback
-            is_5xx = any(code in err_str for code in ["503", "502", "500", "504"]) or \
-                     any(kw in err_str.lower() for kw in ["service unavailable", "overloaded", "server error"])
-            if is_5xx:
+            elif is_5xx:
+                # 5xx 서버 오류: 재시도 후 fallback
                 if attempt < 2:
                     wait = (attempt + 1) * 20
-                    print(f"  ⏳ [{provider_name}] 서버 오류(5xx), {wait}초 후 재시도... (시도 {attempt + 1}/3)")
+                    print(f"  ⏳ [{provider_name}] 서버 오류(5xx) [{err_str[:60]}], {wait}초 후 재시도... (시도 {attempt + 1}/3)")
                     time.sleep(wait)
                 else:
                     print(f"  ❌ [{provider_name}] 서버 오류 3회 재시도 실패 → 다음 provider로 전환")
                     return None, True
+
             else:
                 print(f"  ❌ [{provider_name}] API 오류: {err_str[:150]} → 다음 provider로 전환")
-                return None, True  # fallback 시도
+                return None, True  # 기타 오류 → 즉시 fallback
 
     return None, False
 
@@ -181,14 +180,8 @@ def summarize_articles(articles: list[dict], recent_titles: list[str] = None) ->
     """
     print(f"\n🤖 {len(articles)}개 기사 일괄 분류 + 요약 중... (1회 API 호출)")
 
-    # 사용할 provider 목록 구성 (순서대로 시도)
+    # 사용할 provider 목록 구성 (Gemini 우선, OpenAI fallback)
     providers = []
-    if OPENAI_API_KEY:
-        providers.append((
-            OpenAI(api_key=OPENAI_API_KEY),
-            OPENAI_MODEL,
-            "OpenAI",
-        ))
     if GEMINI_API_KEY:
         providers.append((
             OpenAI(
@@ -197,6 +190,12 @@ def summarize_articles(articles: list[dict], recent_titles: list[str] = None) ->
             ),
             GEMINI_MODEL,
             "Gemini",
+        ))
+    if OPENAI_API_KEY:
+        providers.append((
+            OpenAI(api_key=OPENAI_API_KEY),
+            OPENAI_MODEL,
+            "OpenAI",
         ))
 
     if not providers:
