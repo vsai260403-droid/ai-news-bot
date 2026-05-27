@@ -195,7 +195,7 @@ def summarize_articles(articles: list[dict], recent_titles: list[str] = None) ->
                 api_key=GEMINI_API_KEY,
                 base_url="https://generativelanguage.googleapis.com/v1beta/openai/",
             ),
-            "gemini-2.5-flash",
+            GEMINI_MODEL,
             "Gemini",
         ))
 
@@ -361,7 +361,7 @@ def generate_daily_concept() -> dict | None:
                 api_key=GEMINI_API_KEY,
                 base_url="https://generativelanguage.googleapis.com/v1beta/openai/",
             ),
-            "gemini-2.5-flash",
+            GEMINI_MODEL,
             "Gemini",
         ))
     if OPENAI_API_KEY:
