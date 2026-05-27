@@ -58,6 +58,26 @@ logs() {
     tail -20 "$LOG_DIR/scheduler.log" 2>/dev/null || echo "(로그 없음)"
 }
 
+# 로그 로테이션: 5MB 초과 시 .1~.3으로 순환, 최대 3세대 보관
+rotate_log() {
+    local LOG_FILE="$1"
+    local MAX_SIZE=$((5 * 1024 * 1024))  # 5MB
+    local KEEP=3
+
+    [ -f "$LOG_FILE" ] || return
+
+    local size
+    size=$(stat -c%s "$LOG_FILE" 2>/dev/null || stat -f%z "$LOG_FILE" 2>/dev/null || echo 0)
+    [ "$size" -lt "$MAX_SIZE" ] && return
+
+    rm -f "${LOG_FILE}.${KEEP}"
+    for i in $(seq $((KEEP - 1)) -1 1); do
+        [ -f "${LOG_FILE}.${i}" ] && mv "${LOG_FILE}.${i}" "${LOG_FILE}.$((i + 1))"
+    done
+    mv "$LOG_FILE" "${LOG_FILE}.1"
+    echo "  🔄 로그 로테이션: $(basename "$LOG_FILE") ($(( size / 1024 ))KB → .1)"
+}
+
 start() {
     # .env 확인
     if [ ! -f "$APP_DIR/.env" ]; then
@@ -80,6 +100,10 @@ start() {
     fi
 
     cd "$APP_DIR"
+
+    # 로그 로테이션 (5MB 초과 시)
+    rotate_log "$LOG_DIR/bot.log"
+    rotate_log "$LOG_DIR/scheduler.log"
 
     # 1) 디스코드 봇 (항상 켜져 있음 — !ask 응답)
     nohup "$PYTHON" discord_bot.py >> "$LOG_DIR/bot.log" 2>&1 &
